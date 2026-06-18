@@ -9,7 +9,7 @@ interface AdminUser {
     id: string;
     auth_id: string;
     role: string;
-    display_name: string;
+    full_name: string;
 }
 
 export default async function AdminLayout({
@@ -29,7 +29,7 @@ export default async function AdminLayout({
     // Step 2: Verify admin role from users table
     const { data: profile } = await supabase
         .from('users')
-        .select('id, auth_id, role, display_name')
+        .select('id, auth_id, role, full_name')
         .eq('auth_id', user.id)
         .single() as { data: AdminUser | null };
 
@@ -51,7 +51,7 @@ export default async function AdminLayout({
                 </div>
                 <div className="flex items-center gap-4">
                     <span className="text-[10px] font-mono text-oracle-textSecondary">
-                        {profile.display_name}
+                        {profile.full_name}
                     </span>
                     <span className="text-[10px] font-mono text-oracle-accent font-bold px-2 py-0.5 border border-oracle-accent">
                         ADMIN

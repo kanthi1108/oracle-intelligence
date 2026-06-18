@@ -11,9 +11,6 @@ interface L4VarianceMatrixProps {
     varianceMatrix: VarianceRow[];
     locationAName: string;
     locationBName: string;
-    scoreA: number;
-    scoreB: number;
-    primaryChoice: string;
 }
 
 function getVerdictDisplay(verdict: 'FAVOURS' | 'RISK' | 'NEUTRAL'): {
@@ -50,15 +47,9 @@ export function L4VarianceMatrix({
     varianceMatrix,
     locationAName,
     locationBName,
-    scoreA,
-    scoreB,
-    primaryChoice,
 }: L4VarianceMatrixProps) {
     const nameA = locationAName.toUpperCase();
     const nameB = locationBName.toUpperCase();
-    const delta = scoreB !== 0
-        ? (((scoreA >= scoreB ? scoreA : scoreB) - (scoreA >= scoreB ? scoreB : scoreA)) / (scoreA >= scoreB ? scoreB : scoreA) * 100).toFixed(1)
-        : '0.0';
 
     return (
         <div className="w-full bg-[#0a0a0a] border border-oracle-border select-none">
@@ -154,21 +145,6 @@ export function L4VarianceMatrix({
                 </table>
             </div>
 
-            {/* Composite Score Footer — PRD §4.3 bottom line */}
-            <div className="px-5 py-3 font-mono text-[13px] text-oracle-textSecondary tracking-wider">
-                <span>Composite Score: </span>
-                <span className={`font-bold ${primaryChoice === locationAName ? 'text-green-400' : 'text-oracle-textPrimary'}`}>
-                    {nameA} {scoreA.toFixed(4)}
-                </span>
-                <span className="text-oracle-mutedBorder mx-2">|</span>
-                <span className={`font-bold ${primaryChoice === locationBName ? 'text-green-400' : 'text-oracle-textPrimary'}`}>
-                    {nameB} {scoreB.toFixed(4)}
-                </span>
-                <span className="text-oracle-mutedBorder mx-2">|</span>
-                <span className="text-oracle-accent font-bold">
-                    Δ = +{delta}%
-                </span>
-            </div>
         </div>
     );
 }

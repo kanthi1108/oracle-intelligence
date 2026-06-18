@@ -10,7 +10,9 @@ export type BusinessType =
 export type MetricKey =
     'population' | 'population_growth_pct' | 'median_income_inr' |
     'education_index' | 'daily_footfall' | 'commercial_density_pct' |
-    'competitor_count' | 'avg_rental_sqft_inr';
+    'competitor_count' | 'avg_rental_sqft_inr' |
+    'hospitals_within_3km' | 'office_parks_within_2km' |
+    'metro_station_within_1km' | 'schools_within_2km';
 
 export type MetricDirection = 'higher_better' | 'lower_better' | 'moderate_optimal';
 
@@ -21,7 +23,7 @@ export interface WeightEntry {
     critical: boolean;             // TRUE = this variable alone can cause recommendation reversal
 }
 
-export type BusinessWeightMatrix = Record<MetricKey, WeightEntry>;
+export type BusinessWeightMatrix = Partial<Record<MetricKey, WeightEntry>>;
 
 // Human-readable metric labels for UI rendering
 export const METRIC_LABELS: Record<MetricKey, string> = {
@@ -33,6 +35,10 @@ export const METRIC_LABELS: Record<MetricKey, string> = {
     commercial_density_pct: 'COMMERCIAL DENSITY',
     competitor_count: 'COMPETITOR COUNT',
     avg_rental_sqft_inr: 'AVG RENTAL (₹/sqft)',
+    hospitals_within_3km: 'HOSPITALS (<3KM)',
+    office_parks_within_2km: 'OFFICE PARKS (<2KM)',
+    metro_station_within_1km: 'METRO (<1KM)',
+    schools_within_2km: 'SCHOOLS (<2KM)',
 };
 
 // Metric formatting functions for display
@@ -51,7 +57,12 @@ export function formatMetricValue(key: MetricKey, value: number): string {
         case 'education_index':
             return value.toFixed(3);
         case 'competitor_count':
+        case 'hospitals_within_3km':
+        case 'office_parks_within_2km':
+        case 'schools_within_2km':
             return value.toString();
+        case 'metro_station_within_1km':
+            return value ? 'YES' : 'NO';
         default:
             return value.toString();
     }
@@ -100,13 +111,13 @@ export const ORACLE_WEIGHTS: Record<BusinessType, BusinessWeightMatrix> = {
     // Sum = 1.00 ✓
     pharmacy: {
         population:             { weight: 0.25, direction: 'higher_better', critical: true },
-        population_growth_pct:  { weight: 0.05, direction: 'higher_better', critical: false },
+        hospitals_within_3km:   { weight: 0.20, direction: 'higher_better', critical: true },
+        daily_footfall:         { weight: 0.18, direction: 'higher_better', critical: false },
+        avg_rental_sqft_inr:    { weight: 0.15, direction: 'lower_better', penalty_threshold: 100, critical: false },
+        competitor_count:       { weight: 0.12, direction: 'lower_better', critical: false },
         median_income_inr:      { weight: 0.05, direction: 'higher_better', critical: false },
-        education_index:        { weight: 0.02, direction: 'higher_better', critical: false },
-        daily_footfall:         { weight: 0.18, direction: 'higher_better', critical: true },
         commercial_density_pct: { weight: 0.03, direction: 'moderate_optimal', critical: false },
-        competitor_count:       { weight: 0.12, direction: 'lower_better', penalty_threshold: 5, critical: true },
-        avg_rental_sqft_inr:    { weight: 0.30, direction: 'lower_better', penalty_threshold: 100, critical: true },
+        education_index:        { weight: 0.02, direction: 'higher_better', critical: false },
     },
 
     // ─── QSR ─── PRD §3.4 — Sum = 1.00 ✓
@@ -138,14 +149,14 @@ export const ORACLE_WEIGHTS: Record<BusinessType, BusinessWeightMatrix> = {
     // Remapped: commercial_density_pct absorbs office-park proxy, education_index absorbs metro-accessibility.
     // Sum = 1.00 ✓
     coworking: {
-        commercial_density_pct: { weight: 0.24, direction: 'higher_better', critical: true },
-        median_income_inr:      { weight: 0.20, direction: 'higher_better', critical: true },
-        education_index:        { weight: 0.16, direction: 'higher_better', critical: false },
-        population:             { weight: 0.14, direction: 'higher_better', critical: false },
-        avg_rental_sqft_inr:    { weight: 0.12, direction: 'lower_better', penalty_threshold: 140, critical: false },
-        daily_footfall:         { weight: 0.08, direction: 'higher_better', critical: false },
-        competitor_count:       { weight: 0.04, direction: 'lower_better', critical: false },
-        population_growth_pct:  { weight: 0.02, direction: 'higher_better', critical: false },
+        office_parks_within_2km: { weight: 0.24, direction: 'higher_better', critical: true },
+        median_income_inr:        { weight: 0.20, direction: 'higher_better', critical: true },
+        education_index:          { weight: 0.16, direction: 'higher_better', critical: false },
+        metro_station_within_1km: { weight: 0.14, direction: 'higher_better', critical: false },
+        avg_rental_sqft_inr:      { weight: 0.12, direction: 'lower_better', penalty_threshold: 140, critical: false },
+        daily_footfall:           { weight: 0.08, direction: 'higher_better', critical: false },
+        competitor_count:         { weight: 0.04, direction: 'lower_better', critical: false },
+        population_growth_pct:    { weight: 0.02, direction: 'higher_better', critical: false },
     },
 
     // ─── CLINIC ─── PRD §3.4 — Remapped from domain-specific fields
@@ -153,13 +164,13 @@ export const ORACLE_WEIGHTS: Record<BusinessType, BusinessWeightMatrix> = {
     // Remapped: population_growth_pct absorbs the family-density signal.
     // Sum = 1.00 ✓
     clinic: {
-        population:             { weight: 0.28, direction: 'higher_better', critical: true },
-        median_income_inr:      { weight: 0.20, direction: 'higher_better', critical: true },
-        population_growth_pct:  { weight: 0.14, direction: 'higher_better', critical: false },
-        competitor_count:       { weight: 0.14, direction: 'lower_better', critical: false },
-        avg_rental_sqft_inr:    { weight: 0.10, direction: 'lower_better', penalty_threshold: 110, critical: false },
-        daily_footfall:         { weight: 0.08, direction: 'higher_better', critical: false },
-        education_index:        { weight: 0.04, direction: 'higher_better', critical: false },
-        commercial_density_pct: { weight: 0.02, direction: 'higher_better', critical: false },
+        population:              { weight: 0.28, direction: 'higher_better', critical: true },
+        median_income_inr:       { weight: 0.20, direction: 'higher_better', critical: true },
+        schools_within_2km:      { weight: 0.14, direction: 'higher_better', critical: false },
+        competitor_count:        { weight: 0.14, direction: 'lower_better', critical: false },
+        avg_rental_sqft_inr:     { weight: 0.10, direction: 'lower_better', penalty_threshold: 110, critical: false },
+        daily_footfall:          { weight: 0.08, direction: 'higher_better', critical: false },
+        education_index:         { weight: 0.04, direction: 'higher_better', critical: false },
+        population_growth_pct:   { weight: 0.02, direction: 'higher_better', critical: false },
     },
 };

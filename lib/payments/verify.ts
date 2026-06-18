@@ -39,11 +39,13 @@ export const ANALYST_PACK_CREDITS = 15;
 
 /** Transaction types for the credits ledger */
 export type CreditTransactionType =
-    | 'razorpay_purchase'
-    | 'stripe_purchase'
+    | 'initial_grant'
+    | 'subscription_renewal'
     | 'report_consumption'
+    | 'admin_override'
+    | 'referral_bonus'
     | 'refund'
-    | 'admin_grant';
+    | 'promotional_grant';
 
 export interface CreditLedgerEntry {
     user_id: string;

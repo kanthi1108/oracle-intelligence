@@ -13,14 +13,14 @@ export function detectFlipVariable(
 ): { variable: MetricKey; required_delta_pct: number } | null {
 
     const currentGap = Object.entries(weights).reduce((gap, [key, entry]) => {
-        const contribution = entry.weight * (winnerScores[key as MetricKey] - loserScores[key as MetricKey]);
+        const contribution = entry!.weight * (winnerScores[key as MetricKey] - loserScores[key as MetricKey]);
         return gap + contribution;
     }, 0);
 
     const contributions = Object.entries(weights).map(([key, entry]) => ({
         variable: key as MetricKey,
-        contribution: Math.abs(entry.weight * (winnerScores[key as MetricKey] - loserScores[key as MetricKey])),
-        weight: entry.weight,
+        contribution: Math.abs(entry!.weight * (winnerScores[key as MetricKey] - loserScores[key as MetricKey])),
+        weight: entry!.weight,
     })).sort((a, b) => b.contribution - a.contribution);
 
     if (contributions.length === 0) return null;

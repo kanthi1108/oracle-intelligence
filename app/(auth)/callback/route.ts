@@ -89,9 +89,9 @@ export async function GET(request: NextRequest) {
             .insert({
                 auth_id: user.id,
                 email: user.email,
-                display_name: displayName,
+                full_name: displayName,
                 avatar_url: avatarUrl,
-                plan_type: 'spark',
+                subscription_tier: 'spark',
                 reports_generated: 0,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
                     .from('credits')
                     .insert({
                         user_id: newUser.id,
-                        transaction_type: 'admin_grant',
+                        transaction_type: 'admin_override',
                         direction: 'credit',
                         amount: SPARK_TIER_CREDITS,
                         balance_after: SPARK_TIER_CREDITS,

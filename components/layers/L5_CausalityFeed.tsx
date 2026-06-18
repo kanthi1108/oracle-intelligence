@@ -24,14 +24,14 @@ function getColorClass(color: CausalityEvent['color']): string {
 // Map event type to a fixed-width label for column alignment
 function formatEventType(type: CausalityEvent['type']): string {
     const padded: Record<CausalityEvent['type'], string> = {
-        'ENGINE_INIT':     'ENGINE_INIT    ',
-        'NORMALISE':       'NORMALISE      ',
-        'WEIGHT_APPLIED':  'WEIGHT_APPLIED ',
-        'DELTA_COMPUTED':  'DELTA_COMPUTED ',
-        'FLAG_TRIGGERED':  'FLAG_TRIGGERED ',
-        'COMPOSITE_SCORE': 'COMPOSITE_SCORE',
+        'RECOMMENDATION':  'RECOMMENDATION ',
+        'MARKET_SIGNAL':   'MARKET_SIGNAL  ',
+        'COMPETITOR_INFLUX':'COMPETITOR_INFX',
+        'RENT_ESCALATION': 'RENT_ESCALATION',
+        'THRESHOLD_ALERT': 'THRESHOLD_ALERT',
+        'EVALUATION_MATRIX':'EVALUATION_MATX',
         'FLIP_ANALYSIS':   'FLIP_ANALYSIS  ',
-        'VERDICT_ISSUED':  'VERDICT_ISSUED ',
+        'PIVOT_FINALIZED': 'PIVOT_FINALIZED',
         'CREDIT_DEDUCTED': 'CREDIT_DEDUCTED',
         'REPORT_SAVED':    'REPORT_SAVED   ',
     };
@@ -103,7 +103,7 @@ export function L5CausalityFeed({
                                 style={{ fontSize: '12px' }}
                             >
                                 {/* Timestamp Bracket */}
-                                <span className="text-[#888888]">
+                                <span className="text-[#888888]" suppressHydrationWarning>
                                     [{event.timestamp}]
                                 </span>
                                 {' '}
@@ -111,9 +111,9 @@ export function L5CausalityFeed({
                                 <span
                                     className="font-bold"
                                     style={{
-                                        color: event.type === 'VERDICT_ISSUED'
+                                        color: event.type === 'PIVOT_FINALIZED'
                                             ? '#e8c547'
-                                            : event.type === 'FLAG_TRIGGERED' && event.color === 'red'
+                                            : event.type === 'THRESHOLD_ALERT' && event.color === 'red'
                                                 ? '#e84747'
                                                 : '#00ff41',
                                     }}

@@ -170,7 +170,7 @@ export async function dispatchLifecycleEvent(
         // Fetch user's telegram_chat_id
         const { data: user } = await supabase
             .from('users')
-            .select('telegram_chat_id, display_name')
+            .select('telegram_chat_id, full_name')
             .eq('id', userId)
             .single();
 

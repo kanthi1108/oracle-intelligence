@@ -21,7 +21,7 @@ interface StripeSessionObject {
     status: string;                      // "complete"
     metadata?: {
         user_id?: string;                // ORACLE internal user ID
-        plan_type?: string;              // "analyst_15"
+        subscription_tier?: string;      // "analyst_15"
     };
     subscription?: string | null;        // sub_XXXX if subscription mode
 }
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
             .from('credits')
             .insert({
                 user_id: userId,
-                transaction_type: 'stripe_purchase',
+                transaction_type: 'subscription_renewal',
                 direction: 'credit',
                 amount: ANALYST_PACK_CREDITS,
                 balance_after: newBalance,
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
         await supabase
             .from('users')
             .update({
-                plan_type: 'analyst',
+                subscription_tier: 'analyst',
                 updated_at: new Date().toISOString(),
             })
             .eq('id', userId);

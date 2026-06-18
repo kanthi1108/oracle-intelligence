@@ -129,6 +129,19 @@ export default function Home() {
               Simulation Variance Rig
             </div>
 
+            {/* SCENARIO PRESETS */}
+            <div className="flex gap-2">
+                <button onClick={() => { engine.setCompetitorModifierA(10); engine.setRentModifierA(0); engine.setIncomeModifierA(0); }} className="text-oracle-textSecondary flex-1 bg-oracle-bg border border-oracle-border text-[9px] font-mono hover:bg-oracle-panel p-1.5 transition-colors uppercase">
+                    [ Competitor Influx ]
+                </button>
+                <button onClick={() => { engine.setCompetitorModifierA(0); engine.setRentModifierA(50); engine.setIncomeModifierA(0); }} className="text-oracle-textSecondary flex-1 bg-oracle-bg border border-oracle-border text-[9px] font-mono hover:bg-oracle-panel p-1.5 transition-colors uppercase">
+                    [ Rent Spike ]
+                </button>
+                <button onClick={() => { engine.setCompetitorModifierA(0); engine.setRentModifierA(0); engine.setIncomeModifierA(50000); }} className="text-oracle-textSecondary flex-1 bg-oracle-bg border border-oracle-border text-[9px] font-mono hover:bg-oracle-panel p-1.5 transition-colors uppercase">
+                    [ Income Growth ]
+                </button>
+            </div>
+
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-mono">
                 <span className="text-oracle-textSecondary">COMPETITOR INFLUX</span>
@@ -160,6 +173,22 @@ export default function Home() {
                 className="w-full h-1 bg-oracle-bg appearance-none cursor-pointer accent-oracle-accent border border-oracle-border"
               />
             </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs font-mono">
+                <span className="text-oracle-textSecondary">INCOME GROWTH</span>
+                <span className="text-oracle-accent font-bold">+{engine.incomeModifierA} INR</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100000"
+                step="5000"
+                value={engine.incomeModifierA}
+                onChange={(e) => engine.setIncomeModifierA(parseInt(e.target.value))}
+                className="w-full h-1 bg-oracle-bg appearance-none cursor-pointer accent-oracle-accent border border-oracle-border"
+              />
+            </div>
           </div>
         </div>
 
@@ -185,11 +214,11 @@ export default function Home() {
           businessType={engine.activeProfile}
         />
 
-        {/* Layer 2: High-Impact Conclusion Core */}
         <L2ConclusionCore
           primaryChoice={evaluation.primaryChoice}
           decisionStability={evaluation.decisionStability}
-          businessType={engine.activeProfile}
+          varianceMatrix={evaluation.varianceMatrix}
+          confidencePct={evaluation.confidencePct}
         />
 
         {/* Layer 3: McKinsey-Grade Strategic Brief */}
@@ -198,6 +227,7 @@ export default function Home() {
           locationB={evaluation.locB}
           primaryChoice={evaluation.primaryChoice}
           businessType={engine.activeProfile}
+          varianceMatrix={evaluation.varianceMatrix}
         />
 
         {/* Layer 4: Explainability Variance Matrix */}
@@ -205,9 +235,6 @@ export default function Home() {
           varianceMatrix={evaluation.varianceMatrix}
           locationAName={evaluation.locA.locality_name}
           locationBName={evaluation.locB.locality_name}
-          scoreA={evaluation.scoreA}
-          scoreB={evaluation.scoreB}
-          primaryChoice={evaluation.primaryChoice}
         />
 
         {/* Layer 5: Causality Event Feed */}

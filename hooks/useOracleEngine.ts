@@ -1,7 +1,8 @@
 // hooks/useOracleEngine.ts
 // ORACLE Engine Hook — PRD §3.2 Normalised Weighted Score Formula
 // Provides real-time evaluation state, composite scores, variance matrix, and causality feed
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { BusinessType, MetricKey, ORACLE_WEIGHTS, METRIC_LABELS } from '@/lib/oracle-engine/weights';
 import { calculateDeltaVariance, detectFlipVariable } from '@/lib/oracle-engine/delta';
 
@@ -17,6 +18,10 @@ export interface LocationData {
     commercial_density_pct: number;
     competitor_count: number;
     avg_rental_sqft_inr: number;
+    hospitals_within_3km: number;
+    office_parks_within_2km: number;
+    metro_station_within_1km: boolean;
+    schools_within_2km: number;
 }
 
 export interface VarianceRow {
@@ -30,14 +35,14 @@ export interface VarianceRow {
 }
 
 export type CausalityEventType =
-    | 'ENGINE_INIT'
-    | 'NORMALISE'
-    | 'WEIGHT_APPLIED'
-    | 'DELTA_COMPUTED'
-    | 'FLAG_TRIGGERED'
-    | 'COMPOSITE_SCORE'
+    | 'RECOMMENDATION'
+    | 'MARKET_SIGNAL'
+    | 'COMPETITOR_INFLUX'
+    | 'RENT_ESCALATION'
+    | 'THRESHOLD_ALERT'
+    | 'EVALUATION_MATRIX'
     | 'FLIP_ANALYSIS'
-    | 'VERDICT_ISSUED'
+    | 'PIVOT_FINALIZED'
     | 'CREDIT_DEDUCTED'
     | 'REPORT_SAVED';
 
@@ -56,22 +61,22 @@ export interface FlipVariableResult {
 
 // Preloading high-density seed rows straight from PRD Section 2.4
 const SEED_LOCATIONS: LocationData[] = [
-    { id: '1', locality_name: 'Madhapur', city_name: 'Hyderabad', population: 142000, population_growth_pct: 11.4, median_income_inr: 95000, education_index: 0.847, daily_footfall: 68000, commercial_density_pct: 72.5, competitor_count: 14, avg_rental_sqft_inr: 145 },
-    { id: '2', locality_name: 'Gachibowli', city_name: 'Hyderabad', population: 118000, population_growth_pct: 9.8, median_income_inr: 102000, education_index: 0.871, daily_footfall: 74000, commercial_density_pct: 68.3, competitor_count: 11, avg_rental_sqft_inr: 162 },
-    { id: '3', locality_name: 'Kondapur', city_name: 'Hyderabad', population: 96000, population_growth_pct: 13.2, median_income_inr: 88000, education_index: 0.823, daily_footfall: 51000, commercial_density_pct: 61.4, competitor_count: 9, avg_rental_sqft_inr: 128 },
-    { id: '4', locality_name: 'Banjara Hills', city_name: 'Hyderabad', population: 78000, population_growth_pct: 3.1, median_income_inr: 145000, education_index: 0.891, daily_footfall: 62000, commercial_density_pct: 84.2, competitor_count: 19, avg_rental_sqft_inr: 220 },
-    { id: '5', locality_name: 'Jubilee Hills', city_name: 'Hyderabad', population: 65000, population_growth_pct: 2.4, median_income_inr: 162000, education_index: 0.904, daily_footfall: 54000, commercial_density_pct: 86.7, competitor_count: 22, avg_rental_sqft_inr: 245 },
-    { id: '6', locality_name: 'Kukatpally', city_name: 'Hyderabad', population: 198000, population_growth_pct: 6.7, median_income_inr: 54000, education_index: 0.731, daily_footfall: 82000, commercial_density_pct: 58.9, competitor_count: 24, avg_rental_sqft_inr: 85 },
-    { id: '7', locality_name: 'Begumpet', city_name: 'Hyderabad', population: 87000, population_growth_pct: 1.8, median_income_inr: 71000, education_index: 0.768, daily_footfall: 45000, commercial_density_pct: 65.1, competitor_count: 16, avg_rental_sqft_inr: 110 },
-    { id: '8', locality_name: 'Secunderabad', city_name: 'Hyderabad', population: 224000, population_growth_pct: 2.2, median_income_inr: 48000, education_index: 0.714, daily_footfall: 91000, commercial_density_pct: 62.4, competitor_count: 31, avg_rental_sqft_inr: 78 },
-    { id: '9', locality_name: 'Ameerpet', city_name: 'Hyderabad', population: 112000, population_growth_pct: 1.1, median_income_inr: 52000, education_index: 0.744, daily_footfall: 77000, commercial_density_pct: 71.8, competitor_count: 28, avg_rental_sqft_inr: 92 },
-    { id: '10', locality_name: 'LB Nagar', city_name: 'Hyderabad', population: 181000, population_growth_pct: 5.4, median_income_inr: 41000, education_index: 0.672, daily_footfall: 58000, commercial_density_pct: 47.3, competitor_count: 18, avg_rental_sqft_inr: 68 },
-    { id: '21', locality_name: 'Koramangala', city_name: 'Bengaluru', population: 164000, population_growth_pct: 7.2, median_income_inr: 118000, education_index: 0.882, daily_footfall: 84000, commercial_density_pct: 78.4, competitor_count: 21, avg_rental_sqft_inr: 178 },
-    { id: '22', locality_name: 'Indiranagar', city_name: 'Bengaluru', population: 138000, population_growth_pct: 4.1, median_income_inr: 132000, education_index: 0.894, daily_footfall: 79000, commercial_density_pct: 81.6, competitor_count: 26, avg_rental_sqft_inr: 192 },
-    { id: '23', locality_name: 'Whitefield', city_name: 'Bengaluru', population: 242000, population_growth_pct: 14.8, median_income_inr: 97000, education_index: 0.858, daily_footfall: 91000, commercial_density_pct: 66.3, competitor_count: 17, avg_rental_sqft_inr: 135 },
-    { id: '24', locality_name: 'Electronic City', city_name: 'Bengaluru', population: 198000, population_growth_pct: 12.3, median_income_inr: 84000, education_index: 0.843, daily_footfall: 74000, commercial_density_pct: 58.7, competitor_count: 14, avg_rental_sqft_inr: 112 },
-    { id: '31', locality_name: 'Koregaon Park', city_name: 'Pune', population: 98000, population_growth_pct: 4.8, median_income_inr: 128000, education_index: 0.891, daily_footfall: 72000, commercial_density_pct: 82.4, competitor_count: 23, avg_rental_sqft_inr: 198 },
-    { id: '32', locality_name: 'Baner', city_name: 'Pune', population: 147000, population_growth_pct: 12.6, median_income_inr: 94000, education_index: 0.848, daily_footfall: 68000, commercial_density_pct: 68.7, competitor_count: 18, avg_rental_sqft_inr: 142 },
+    { id: '1', locality_name: 'Madhapur', city_name: 'Hyderabad', population: 142000, population_growth_pct: 11.4, median_income_inr: 95000, education_index: 0.847, daily_footfall: 68000, commercial_density_pct: 72.5, competitor_count: 14, avg_rental_sqft_inr: 145, metro_station_within_1km: true, office_parks_within_2km: 18, hospitals_within_3km: 6, schools_within_2km: 12 },
+    { id: '2', locality_name: 'Gachibowli', city_name: 'Hyderabad', population: 118000, population_growth_pct: 9.8, median_income_inr: 102000, education_index: 0.871, daily_footfall: 74000, commercial_density_pct: 68.3, competitor_count: 11, avg_rental_sqft_inr: 162, metro_station_within_1km: false, office_parks_within_2km: 22, hospitals_within_3km: 5, schools_within_2km: 9 },
+    { id: '3', locality_name: 'Kondapur', city_name: 'Hyderabad', population: 96000, population_growth_pct: 13.2, median_income_inr: 88000, education_index: 0.823, daily_footfall: 51000, commercial_density_pct: 61.4, competitor_count: 9, avg_rental_sqft_inr: 128, metro_station_within_1km: false, office_parks_within_2km: 14, hospitals_within_3km: 4, schools_within_2km: 11 },
+    { id: '4', locality_name: 'Banjara Hills', city_name: 'Hyderabad', population: 78000, population_growth_pct: 3.1, median_income_inr: 145000, education_index: 0.891, daily_footfall: 62000, commercial_density_pct: 84.2, competitor_count: 19, avg_rental_sqft_inr: 220, metro_station_within_1km: false, office_parks_within_2km: 8, hospitals_within_3km: 9, schools_within_2km: 7 },
+    { id: '5', locality_name: 'Jubilee Hills', city_name: 'Hyderabad', population: 65000, population_growth_pct: 2.4, median_income_inr: 162000, education_index: 0.904, daily_footfall: 54000, commercial_density_pct: 86.7, competitor_count: 22, avg_rental_sqft_inr: 245, metro_station_within_1km: false, office_parks_within_2km: 6, hospitals_within_3km: 11, schools_within_2km: 8 },
+    { id: '6', locality_name: 'Kukatpally', city_name: 'Hyderabad', population: 198000, population_growth_pct: 6.7, median_income_inr: 54000, education_index: 0.731, daily_footfall: 82000, commercial_density_pct: 58.9, competitor_count: 24, avg_rental_sqft_inr: 85, metro_station_within_1km: true, office_parks_within_2km: 4, hospitals_within_3km: 7, schools_within_2km: 18 },
+    { id: '7', locality_name: 'Begumpet', city_name: 'Hyderabad', population: 87000, population_growth_pct: 1.8, median_income_inr: 71000, education_index: 0.768, daily_footfall: 45000, commercial_density_pct: 65.1, competitor_count: 16, avg_rental_sqft_inr: 110, metro_station_within_1km: false, office_parks_within_2km: 7, hospitals_within_3km: 8, schools_within_2km: 9 },
+    { id: '8', locality_name: 'Secunderabad', city_name: 'Hyderabad', population: 224000, population_growth_pct: 2.2, median_income_inr: 48000, education_index: 0.714, daily_footfall: 91000, commercial_density_pct: 62.4, competitor_count: 31, avg_rental_sqft_inr: 78, metro_station_within_1km: true, office_parks_within_2km: 3, hospitals_within_3km: 12, schools_within_2km: 22 },
+    { id: '9', locality_name: 'Ameerpet', city_name: 'Hyderabad', population: 112000, population_growth_pct: 1.1, median_income_inr: 52000, education_index: 0.744, daily_footfall: 77000, commercial_density_pct: 71.8, competitor_count: 28, avg_rental_sqft_inr: 92, metro_station_within_1km: true, office_parks_within_2km: 5, hospitals_within_3km: 9, schools_within_2km: 16 },
+    { id: '10', locality_name: 'LB Nagar', city_name: 'Hyderabad', population: 181000, population_growth_pct: 5.4, median_income_inr: 41000, education_index: 0.672, daily_footfall: 58000, commercial_density_pct: 47.3, competitor_count: 18, avg_rental_sqft_inr: 68, metro_station_within_1km: false, office_parks_within_2km: 2, hospitals_within_3km: 6, schools_within_2km: 14 },
+    { id: '21', locality_name: 'Koramangala', city_name: 'Bengaluru', population: 164000, population_growth_pct: 7.2, median_income_inr: 118000, education_index: 0.882, daily_footfall: 84000, commercial_density_pct: 78.4, competitor_count: 21, avg_rental_sqft_inr: 178, metro_station_within_1km: false, office_parks_within_2km: 24, hospitals_within_3km: 7, schools_within_2km: 11 },
+    { id: '22', locality_name: 'Indiranagar', city_name: 'Bengaluru', population: 138000, population_growth_pct: 4.1, median_income_inr: 132000, education_index: 0.894, daily_footfall: 79000, commercial_density_pct: 81.6, competitor_count: 26, avg_rental_sqft_inr: 192, metro_station_within_1km: false, office_parks_within_2km: 19, hospitals_within_3km: 8, schools_within_2km: 9 },
+    { id: '23', locality_name: 'Whitefield', city_name: 'Bengaluru', population: 242000, population_growth_pct: 14.8, median_income_inr: 97000, education_index: 0.858, daily_footfall: 91000, commercial_density_pct: 66.3, competitor_count: 17, avg_rental_sqft_inr: 135, metro_station_within_1km: false, office_parks_within_2km: 31, hospitals_within_3km: 9, schools_within_2km: 14 },
+    { id: '24', locality_name: 'Electronic City', city_name: 'Bengaluru', population: 198000, population_growth_pct: 12.3, median_income_inr: 84000, education_index: 0.843, daily_footfall: 74000, commercial_density_pct: 58.7, competitor_count: 14, avg_rental_sqft_inr: 112, metro_station_within_1km: false, office_parks_within_2km: 27, hospitals_within_3km: 6, schools_within_2km: 11 },
+    { id: '31', locality_name: 'Koregaon Park', city_name: 'Pune', population: 98000, population_growth_pct: 4.8, median_income_inr: 128000, education_index: 0.891, daily_footfall: 72000, commercial_density_pct: 82.4, competitor_count: 23, avg_rental_sqft_inr: 198, metro_station_within_1km: false, office_parks_within_2km: 11, hospitals_within_3km: 8, schools_within_2km: 7 },
+    { id: '32', locality_name: 'Baner', city_name: 'Pune', population: 147000, population_growth_pct: 12.6, median_income_inr: 94000, education_index: 0.848, daily_footfall: 68000, commercial_density_pct: 68.7, competitor_count: 18, avg_rental_sqft_inr: 142, metro_station_within_1km: false, office_parks_within_2km: 19, hospitals_within_3km: 5, schools_within_2km: 11 },
 ];
 
 // Generate a simulated ISO timestamp anchored to the current render cycle
@@ -95,20 +100,37 @@ export function useOracleEngine() {
     // Real-time slider modifiers for simulation adjustments
     const [competitorModifierA, setCompetitorModifierA] = useState<number>(0);
     const [rentModifierA, setRentModifierA] = useState<number>(0);
+    const [incomeModifierA, setIncomeModifierA] = useState<number>(0);
+
+    const [locations, setLocations] = useState<LocationData[]>(SEED_LOCATIONS);
+
+    useEffect(() => {
+        const fetchLocations = async () => {
+            const supabase = createClient();
+            const { data, error } = await supabase.from('locations').select('*');
+            if (data && data.length > 0) {
+                setLocations(data as LocationData[]);
+            } else if (error) {
+                console.error('[ORACLE] Failed to fetch locations:', error);
+            }
+        };
+        fetchLocations();
+    }, []);
 
     // Dynamic simulation payload calculations
     const processedLocations = useMemo(() => {
-        return SEED_LOCATIONS.map((loc) => {
+        return locations.map((loc) => {
             if (loc.id === locationAId) {
                 return {
                     ...loc,
                     competitor_count: Math.max(0, loc.competitor_count + competitorModifierA),
                     avg_rental_sqft_inr: Math.max(1, loc.avg_rental_sqft_inr + rentModifierA),
+                    median_income_inr: Math.max(1, loc.median_income_inr + incomeModifierA),
                 };
             }
             return loc;
         });
-    }, [locationAId, competitorModifierA, rentModifierA]);
+    }, [locations, locationAId, competitorModifierA, rentModifierA, incomeModifierA]);
 
     const evaluation = useMemo(() => {
         const locA = processedLocations.find(l => l.id === locationAId) || processedLocations[0];
@@ -119,14 +141,17 @@ export function useOracleEngine() {
         const allMetricKeys = Object.keys(weights) as MetricKey[];
 
         // PRD §3.2: Normalised scoring — N_i = (V - V_min) / (V_max - V_min)
-        const normalise = (key: MetricKey, val: number): number => {
-            const valA = locA[key] as number;
-            const valB = locB[key] as number;
-            const min = Math.min(valA, valB);
-            const max = Math.max(valA, valB);
+        const normalise = (key: MetricKey, val: number | boolean): number => {
+            const valA = locA[key];
+            const valB = locB[key];
+            const numVal = typeof val === 'boolean' ? (val ? 1 : 0) : val;
+            const numA = typeof valA === 'boolean' ? (valA ? 1 : 0) : (valA as number);
+            const numB = typeof valB === 'boolean' ? (valB ? 1 : 0) : (valB as number);
+            const min = Math.min(numA, numB);
+            const max = Math.max(numA, numB);
             if (max === min) return 0.5;
-            const normalised = (val - min) / (max - min);
-            if (weights[key].direction === 'lower_better') {
+            const normalised = (numVal - min) / (max - min);
+            if (weights[key]!.direction === 'lower_better') {
                 return 1 - normalised;
             }
             return normalised;
@@ -136,14 +161,14 @@ export function useOracleEngine() {
         const normScoresA: Record<string, number> = {};
         const normScoresB: Record<string, number> = {};
         allMetricKeys.forEach((key) => {
-            normScoresA[key] = normalise(key, locA[key] as number);
-            normScoresB[key] = normalise(key, locB[key] as number);
+            normScoresA[key] = normalise(key, locA[key]);
+            normScoresB[key] = normalise(key, locB[key]);
         });
 
         // Calculate composite score per PRD §3.2
         const calculateScore = (normScores: Record<string, number>): number => {
             return allMetricKeys.reduce((score, key) => {
-                return score + (weights[key].weight * normScores[key]);
+                return score + (weights[key]!.weight * normScores[key]);
             }, 0);
         };
 
@@ -156,12 +181,16 @@ export function useOracleEngine() {
         // Build variance matrix rows for L4 — PRD §4.3
         const deltas: Record<string, number> = {};
         const varianceMatrix: VarianceRow[] = allMetricKeys.map((key) => {
-            const winnerVal = winnerIsA ? locA[key] as number : locB[key] as number;
-            const loserVal = winnerIsA ? locB[key] as number : locA[key] as number;
+            const valA = locA[key];
+            const valB = locB[key];
+            const numA = typeof valA === 'boolean' ? (valA ? 1 : 0) : (valA as number);
+            const numB = typeof valB === 'boolean' ? (valB ? 1 : 0) : (valB as number);
+            const winnerVal = winnerIsA ? numA : numB;
+            const loserVal = winnerIsA ? numB : numA;
             const deltaPct = calculateDeltaVariance(winnerVal, loserVal);
-            deltas[key] = calculateDeltaVariance(locA[key] as number, locB[key] as number);
+            deltas[key] = calculateDeltaVariance(numA, numB);
 
-            const entry = weights[key];
+            const entry = weights[key]!;
             const absDelta = Math.abs(deltaPct);
 
             let verdict: 'FAVOURS' | 'RISK' | 'NEUTRAL';
@@ -175,8 +204,8 @@ export function useOracleEngine() {
 
             return {
                 metric: key,
-                valA: locA[key] as number,
-                valB: locB[key] as number,
+                valA: numA,
+                valB: numB,
                 deltaPct,
                 weight: entry.weight,
                 impact: entry.weight * absDelta,
@@ -212,71 +241,66 @@ export function useOracleEngine() {
         const loserName = winnerIsA ? locB.locality_name : locA.locality_name;
         const causalityEvents: CausalityEvent[] = [];
 
-        // ENGINE_INIT
+        // RECOMMENDATION DETECTED
         causalityEvents.push({
             timestamp: ts(3200),
-            type: 'ENGINE_INIT',
-            message: `business_type=${activeProfile.toUpperCase()} weights_loaded=${allMetricKeys.length}`,
-            color: 'gray',
+            type: 'RECOMMENDATION',
+            message: `RECOMMENDATION DETECTED: Engine pivot triggered. ${winnerName} outpaces ${loserName}.`,
+            color: 'green',
         });
 
-        // NORMALISE + WEIGHT_APPLIED for top contributing metrics
-        allMetricKeys.forEach((key, i) => {
-            const nA = normScoresA[key].toFixed(3);
-            const nB = normScoresB[key].toFixed(3);
-            const w = weights[key].weight;
-            const gap = (w * (normScoresA[key] - normScoresB[key])).toFixed(4);
-            const sign = parseFloat(gap) >= 0 ? '+' : '';
-
-            causalityEvents.push({
-                timestamp: ts(3100 - i * 80),
-                type: 'NORMALISE',
-                message: `${key} L1=${nA} L2=${nB}`,
-                color: 'green',
-            });
-            causalityEvents.push({
-                timestamp: ts(3050 - i * 80),
-                type: 'WEIGHT_APPLIED',
-                message: `${key} w=${w} contrib_gap=${sign}${gap}`,
-                color: 'green',
-            });
-        });
-
-        // DELTA_COMPUTED for high-impact rows
+        // High-impact business signals (replaces NORMALISE/WEIGHT_APPLIED/DELTA_COMPUTED)
         varianceMatrix.slice(0, 4).forEach((row, i) => {
-            const label = METRIC_LABELS[row.metric].toLowerCase().replace(/[()₹\/]/g, '').trim();
-            const favoursLoc = row.verdict === 'FAVOURS' ? winnerName : loserName;
+            const label = METRIC_LABELS[row.metric];
+            let signalMsg = '';
+            const locName = row.verdict === 'FAVOURS' ? winnerName : loserName;
+            let eventType: CausalityEventType = 'MARKET_SIGNAL';
+            
+            if (row.metric === 'competitor_count') {
+                eventType = 'COMPETITOR_INFLUX';
+                signalMsg = `COMPETITOR INFLUX: ${locName} competitor count shifted to ${row.verdict === 'FAVOURS' ? Math.min(row.valA, row.valB) : Math.max(row.valA, row.valB)}.`;
+            } else if (row.metric === 'avg_rental_sqft_inr') {
+                eventType = 'RENT_ESCALATION';
+                signalMsg = `RENT ESCALATION: ${locName} faces operational friction at ₹${Math.max(row.valA, row.valB)}/sqft.`;
+            } else {
+                signalMsg = `MARKET SIGNAL: ${locName} holds a +${Math.abs(row.deltaPct).toFixed(1)}% ${label} premium.`;
+            }
+
             causalityEvents.push({
                 timestamp: ts(1800 - i * 100),
-                type: 'DELTA_COMPUTED',
-                message: `${label} Δ=${row.deltaPct >= 0 ? '+' : ''}${row.deltaPct.toFixed(1)}% FAVOURS=${favoursLoc}`,
+                type: eventType,
+                message: signalMsg,
                 color: row.verdict === 'RISK' ? 'yellow' : 'green',
             });
         });
 
         // FLAG_TRIGGERED for penalty metrics
         allMetricKeys.forEach((key) => {
-            const entry = weights[key];
+            const entry = weights[key]!;
             if (entry.penalty_threshold != null) {
-                const winnerVal = winnerIsA ? locA[key] as number : locB[key] as number;
+                const valA = locA[key];
+                const valB = locB[key];
+                const numA = typeof valA === 'boolean' ? (valA ? 1 : 0) : (valA as number);
+                const numB = typeof valB === 'boolean' ? (valB ? 1 : 0) : (valB as number);
+                const winnerVal = winnerIsA ? numA : numB;
                 const triggered = entry.direction === 'lower_better'
                     ? winnerVal > entry.penalty_threshold
                     : winnerVal < entry.penalty_threshold;
                 const status = triggered ? 'TRIGGERED' : 'CLEARED';
                 causalityEvents.push({
                     timestamp: ts(1200),
-                    type: 'FLAG_TRIGGERED',
-                    message: `flag_${key}=${triggered ? 'TRUE' : 'FALSE'} threshold=${entry.penalty_threshold} actual=${winnerVal} STATUS: ${status}`,
+                    type: 'THRESHOLD_ALERT',
+                    message: triggered ? `${METRIC_LABELS[key]} threshold exceeded. Risk flag triggered.` : `${METRIC_LABELS[key]} within safe operating margins.`,
                     color: triggered ? 'red' : 'gray',
                 });
             }
         });
 
-        // COMPOSITE_SCORE
+        // COMPOSITE_SCORE replacement
         causalityEvents.push({
             timestamp: ts(800),
-            type: 'COMPOSITE_SCORE',
-            message: `L1=${scoreA.toFixed(4)} L2=${scoreB.toFixed(4)} gap=${Math.abs(scoreA - scoreB).toFixed(4)}`,
+            type: 'EVALUATION_MATRIX',
+            message: `Evaluation matrix generated. Absolute variance computed across all tracked inputs.`,
             color: 'green',
         });
 
@@ -299,16 +323,16 @@ export function useOracleEngine() {
             causalityEvents.push({
                 timestamp: ts(500),
                 type: 'FLIP_ANALYSIS',
-                message: 'no single decisive variable — multi-factor verdict',
+                message: 'No single decisive vulnerability detected. Core infrastructure variables dictate verdict.',
                 color: 'gray',
             });
         }
 
-        // VERDICT_ISSUED
+        // VERDICT_ISSUED replacement
         causalityEvents.push({
             timestamp: ts(200),
-            type: 'VERDICT_ISSUED',
-            message: `WINNER=${winnerName} confidence=${confidencePct.toFixed(1)}% decisive=${isDecisive ? 'TRUE' : 'FALSE'}`,
+            type: 'PIVOT_FINALIZED',
+            message: `Recommendation pivot finalized. ${winnerName} isolated as superior expansion target.`,
             color: 'yellow',
         });
 
@@ -353,7 +377,9 @@ export function useOracleEngine() {
         setCompetitorModifierA,
         rentModifierA,
         setRentModifierA,
+        incomeModifierA,
+        setIncomeModifierA,
         evaluation,
-        allLocations: SEED_LOCATIONS
+        allLocations: locations
     };
 }

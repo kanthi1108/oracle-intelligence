@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
             .from('credits')
             .insert({
                 user_id,
-                transaction_type: 'admin_grant',
+                transaction_type: 'admin_override',
                 direction,
                 amount,
                 balance_after: newBalance,
@@ -106,6 +106,24 @@ export async function POST(request: NextRequest) {
                 AMOUNT: amount,
                 BALANCE: newBalance,
             });
+        }
+
+        // ── ADMIN AUDIT LOGGING — PRD §6.2 ──
+        const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '127.0.0.1';
+        
+        const { error: auditError } = await supabase
+            .from('admin_audit_log')
+            .insert({
+                admin_user_id: adminProfile.id,
+                target_user_id: user_id,
+                action: 'credit_override',
+                payload_before: { current_balance: currentBalance },
+                payload_after: { current_balance: newBalance, direction, amount },
+                ip_address: ipAddress,
+            });
+
+        if (auditError) {
+            console.error('[ORACLE] Failed to insert admin audit log:', auditError);
         }
 
         return NextResponse.json({

@@ -12,9 +12,9 @@ interface UserRow {
     id: string;
     auth_id: string;
     email: string;
-    display_name: string;
+    full_name: string;
     role: string;
-    plan_type: string;
+    subscription_tier: string;
     reports_generated: number;
     created_at: string;
     current_balance: number | null;
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
         // Fetch users with their credit balances from the view
         const { data: usersData } = await supabase
             .from('users')
-            .select('id, auth_id, email, display_name, role, plan_type, reports_generated, created_at')
+            .select('id, auth_id, email, full_name, role, subscription_tier, reports_generated, created_at')
             .order('created_at', { ascending: false });
 
         if (usersData) {
@@ -225,9 +225,9 @@ export default function AdminDashboard() {
                 id: string;
                 auth_id: string;
                 email: string;
-                display_name: string;
+                full_name: string;
                 role: string;
-                plan_type: string;
+                subscription_tier: string;
                 reports_generated: number;
                 created_at: string;
             }) => ({
@@ -272,7 +272,7 @@ export default function AdminDashboard() {
     const handlePlanChange = async (userId: string, newPlan: string) => {
         await supabase
             .from('users')
-            .update({ plan_type: newPlan, updated_at: new Date().toISOString() })
+            .update({ subscription_tier: newPlan, updated_at: new Date().toISOString() })
             .eq('id', userId);
         await fetchUsers();
     };
@@ -366,7 +366,7 @@ export default function AdminDashboard() {
                                         {user.email ?? '—'}
                                     </td>
                                     <td className="py-2 px-4 text-oracle-textPrimary font-bold">
-                                        {user.display_name ?? '—'}
+                                        {user.full_name ?? '—'}
                                     </td>
                                     <td className="py-2 px-4">
                                         <select
@@ -374,18 +374,21 @@ export default function AdminDashboard() {
                                             onChange={(e) => handleRoleChange(user.id, e.target.value)}
                                             className="bg-oracle-bg border border-oracle-border text-oracle-textPrimary text-[11px] font-mono py-0.5 px-1 focus:outline-none focus:border-oracle-accent"
                                         >
-                                            <option value="user">user</option>
+                                            <option value="member">member</option>
+                                            <option value="analyst">analyst</option>
+                                            <option value="enterprise">enterprise</option>
                                             <option value="admin">admin</option>
                                         </select>
                                     </td>
                                     <td className="py-2 px-4">
                                         <select
-                                            value={user.plan_type}
+                                            value={user.subscription_tier}
                                             onChange={(e) => handlePlanChange(user.id, e.target.value)}
                                             className="bg-oracle-bg border border-oracle-border text-oracle-textPrimary text-[11px] font-mono py-0.5 px-1 focus:outline-none focus:border-oracle-accent"
                                         >
                                             <option value="spark">spark</option>
                                             <option value="analyst">analyst</option>
+                                            <option value="enterprise">enterprise</option>
                                         </select>
                                     </td>
                                     <td className="py-2 px-4 text-right">
@@ -404,7 +407,7 @@ export default function AdminDashboard() {
                                             onClick={() => setCreditModal({
                                                 open: true,
                                                 userId: user.id,
-                                                userName: user.display_name ?? user.email ?? '—',
+                                                userName: user.full_name ?? user.email ?? '—',
                                                 currentBalance: user.current_balance ?? 0,
                                             })}
                                             className="text-[10px] font-mono text-oracle-accent border border-oracle-accent px-2 py-0.5 hover:bg-oracle-accent hover:text-oracle-bg transition-colors tracking-wider"
