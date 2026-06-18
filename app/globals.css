@@ -1,27 +1,294 @@
+/* ============================================================
+   ORACLE PLATFORM — Global Design System
+   PRD §4.2 · CSS Variables + Tailwind Layers
+   ============================================================ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+/* ── DESIGN TOKEN LAYER ─────────────────────────────────────── */
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Control Rig Panel — PRD §4.2 */
+    --rig-bg: #1a1a1a;
+    --rig-border: #333333;
+    --rig-text-primary: #f0f0f0;
+    --rig-text-secondary: #888888;
+    --rig-accent: #e8c547;
+    --rig-danger: #e84747;
+
+    /* Content Workspace — PRD §4.3 */
+    --workspace-bg: #0d0d0d;
+    --workspace-text: #e8e8e8;
+    --workspace-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --workspace-serif: 'Inter', sans-serif;
+
+    /* Border Tokens */
+    --border-double: 3px double #e8c547;
+    --border-single: 1px solid #333333;
+
+    /* Semantic Status Colors */
+    --color-positive: #4ade80;
+    --color-negative: #e84747;
+    --color-warning: #fbbf24;
+    --color-neutral: #888888;
+    --color-accent: #e8c547;
+
+    /* Surface Elevation Layers */
+    --surface-0: #050505;
+    --surface-1: #0a0a0a;
+    --surface-2: #0d0d0d;
+    --surface-3: #141416;
+    --surface-4: #1a1a1a;
+    --surface-5: #222224;
+  }
+
+  /* ── BASE RESETS ─────────────────────────────────────────── */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--workspace-bg);
+    color: var(--workspace-text);
+    overflow-x: hidden;
+    line-height: 1.5;
+  }
+
+  /* ── TYPOGRAPHY OVERRIDES ────────────────────────────────── */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--workspace-mono);
+    letter-spacing: -0.02em;
+    font-weight: 800;
+  }
+
+  code, pre, kbd, samp {
+    font-family: var(--workspace-mono);
+  }
+
+  /* ── SELECTION ───────────────────────────────────────────── */
+  ::selection {
+    background-color: rgba(232, 197, 71, 0.25);
+    color: var(--rig-text-primary);
+  }
+
+  ::-moz-selection {
+    background-color: rgba(232, 197, 71, 0.25);
+    color: var(--rig-text-primary);
+  }
+
+  /* ── SCROLLBAR — Dark Theme ──────────────────────────────── */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--surface-1);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--rig-border);
+    border-radius: 0;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--rig-text-secondary);
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--rig-border) var(--surface-1);
+  }
+
+  /* ── FOCUS RING — Accessible but on-brand ────────────────── */
+  :focus-visible {
+    outline: 2px solid var(--rig-accent);
+    outline-offset: 2px;
+  }
+
+  /* ── FORM ELEMENTS ───────────────────────────────────────── */
+  select,
+  input[type="text"],
+  input[type="number"],
+  textarea {
+    background-color: var(--workspace-bg);
+    color: var(--rig-text-primary);
+    border: 1px solid var(--rig-border);
+    font-family: var(--workspace-mono);
+    font-size: 12px;
+  }
+
+  select:focus,
+  input:focus,
+  textarea:focus {
+    border-color: var(--rig-accent);
+    outline: none;
+  }
+
+  select option {
+    background-color: var(--rig-bg);
+    color: var(--rig-text-primary);
+  }
+
+  /* ── RANGE SLIDER — Accent brand color ───────────────────── */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: var(--rig-border);
+    border: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 14px;
+    width: 14px;
+    margin-top: -5px;
+    background: var(--rig-accent);
+    border: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    background: var(--rig-border);
+    border: none;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    height: 14px;
+    width: 14px;
+    background: var(--rig-accent);
+    border: none;
+    border-radius: 0;
+    cursor: pointer;
+  }
+
+  input[type="range"]:focus::-webkit-slider-thumb {
+    box-shadow: 0 0 0 2px var(--workspace-bg), 0 0 0 4px var(--rig-accent);
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── COMPONENT LAYER ───────────────────────────────────────── */
+@layer components {
+  /* McKinsey Double-Border Box — PRD §4.3 Layer 2 */
+  .border-double-accent {
+    border: var(--border-double);
+  }
+
+  .border-single-muted {
+    border: var(--border-single);
+  }
+
+  /* Fight Card Header Bar — PRD §4.3 Layer 1 */
+  .fight-card-header {
+    width: 100%;
+    height: 64px;
+    background: #111111;
+    border-top: 1px solid var(--rig-accent);
+    border-bottom: 1px solid var(--rig-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    user-select: none;
+  }
+
+  /* Variance Matrix Table — PRD §4.3 Layer 4 */
+  .variance-matrix {
+    font-family: var(--workspace-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    background: var(--surface-1);
+    border: 1px solid var(--rig-border);
+  }
+
+  /* Causality Feed Terminal — PRD §4.3 Layer 5 */
+  .causality-feed {
+    background: var(--surface-0);
+    border: 1px solid #1f1f1f;
+    border-radius: 0;
+    font-family: var(--workspace-mono);
+    font-size: 12px;
+    color: #00ff41;
+  }
+
+  /* Verdict Box Inner Frame */
+  .verdict-frame {
+    border: 3px double var(--rig-accent);
+    padding: 24px;
+  }
+
+  .verdict-frame-inner {
+    border: 1px solid var(--rig-accent);
+    padding: 24px;
+  }
 }
 
+/* ── UTILITY LAYER ─────────────────────────────────────────── */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  /* Tabular figures for numeric alignment in data tables */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Terminal green text for causality feed */
+  .text-terminal {
+    color: #00ff41;
+  }
+
+  /* Signal yellow highlight */
+  .text-signal {
+    color: var(--rig-accent);
+  }
+
+  /* Verdict positive / negative */
+  .text-verdict-positive {
+    color: var(--color-positive);
+  }
+
+  .text-verdict-negative {
+    color: var(--color-negative);
+  }
+
+  .text-verdict-warning {
+    color: var(--color-warning);
+  }
+
+  /* Monospace data label styling */
+  .data-label {
+    font-family: var(--workspace-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--rig-text-secondary);
+  }
+
+  /* Hide scrollbar but keep scrollability */
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
