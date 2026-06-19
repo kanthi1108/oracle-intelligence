@@ -36,10 +36,6 @@ export default function Home() {
           const { profile, balance, reports } = await res.json();
           
           if (profile?.role) {
-              if (profile.role === 'admin') {
-                  window.location.href = '/dashboard';
-                  return;
-              }
               engine.setUserRole(profile.role);
           }
           if (typeof balance === 'number') {
@@ -338,6 +334,30 @@ export default function Home() {
           >
               Run Strategic Intelligence Simulation
           </button>
+
+          {engine.userRole === 'member' && (
+            <button
+              onClick={async () => {
+                const res = await fetch('/api/credits/sandbox-purchase', { method: 'POST' });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (typeof data.balance === 'number') {
+                    engine.setCreditBalance(data.balance);
+                    engine.setCreditsExhausted(false);
+                  }
+                }
+              }}
+              className="w-full bg-transparent border border-oracle-border text-oracle-textSecondary font-mono tracking-widest text-[10px] py-2 mt-2 hover:border-oracle-accent hover:text-oracle-accent transition-colors uppercase"
+            >
+              [ Purchase Credits (Sandbox) ]
+            </button>
+          )}
+
+          {engine.userRole === 'admin' && (
+            <a href="/dashboard" className="block w-full bg-oracle-panel text-oracle-textPrimary font-mono tracking-widest text-[10px] py-2 mt-2 text-center border border-oracle-border hover:border-oracle-accent hover:text-oracle-accent transition-colors uppercase">
+              [ Admin Dashboard ]
+            </a>
+          )}
 
           {/* Phase 9: My Saved Report Library */}
           <div className="border-t border-oracle-border pt-4 space-y-2">

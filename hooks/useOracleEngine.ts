@@ -493,6 +493,7 @@ export function useOracleEngine() {
         evaluation,
         allLocations: locations,
         creditsExhausted: userRole === 'admin' ? false : creditsExhausted,
+        setCreditsExhausted,
         creditBalance,
         setCreditBalance,
         reportStatus,
