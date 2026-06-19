@@ -1,0 +1,351 @@
+{
+  "gym": {
+    "population": {
+      "weight": 0.22,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "population_growth_pct": {
+      "weight": 0.14,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "education_index": {
+      "weight": 0.12,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "median_income_inr": {
+      "weight": 0.25,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "competitor_count": {
+      "weight": 0.18,
+      "direction": "lower_better",
+      "penalty_threshold": 8,
+      "critical": true
+    },
+    "avg_rental_sqft_inr": {
+      "weight": 0.15,
+      "direction": "lower_better",
+      "penalty_threshold": 130,
+      "critical": true
+    },
+    "daily_footfall": {
+      "weight": 0.5,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "commercial_density_pct": {
+      "weight": 0.03,
+      "direction": "moderate_optimal",
+      "critical": false
+    }
+  },
+  "cafe": {
+    "median_income_inr": {
+      "weight": 0.25,
+      "direction": "higher_better",
+      "penalty_threshold": 70000,
+      "critical": true
+    },
+    "daily_footfall": {
+      "weight": 0.22,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "commercial_density_pct": {
+      "weight": 0.18,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "competitor_count": {
+      "weight": 0.12,
+      "direction": "lower_better",
+      "penalty_threshold": 12,
+      "critical": false
+    },
+    "education_index": {
+      "weight": 0.09,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "avg_rental_sqft_inr": {
+      "weight": 0.08,
+      "direction": "lower_better",
+      "penalty_threshold": 200,
+      "critical": false
+    },
+    "population": {
+      "weight": 0.05,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "population_growth_pct": {
+      "weight": 0.02,
+      "direction": "higher_better",
+      "critical": false
+    }
+  },
+  "grocery": {
+    "population": {
+      "weight": 0.28,
+      "direction": "higher_better",
+      "penalty_threshold": 60000,
+      "critical": true
+    },
+    "daily_footfall": {
+      "weight": 0.24,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "avg_rental_sqft_inr": {
+      "weight": 0.2,
+      "direction": "lower_better",
+      "penalty_threshold": 95,
+      "critical": true
+    },
+    "competitor_count": {
+      "weight": 0.12,
+      "direction": "lower_better",
+      "penalty_threshold": 6,
+      "critical": false
+    },
+    "population_growth_pct": {
+      "weight": 0.08,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "median_income_inr": {
+      "weight": 0.04,
+      "direction": "moderate_optimal",
+      "critical": false
+    },
+    "commercial_density_pct": {
+      "weight": 0.02,
+      "direction": "moderate_optimal",
+      "critical": false
+    },
+    "education_index": {
+      "weight": 0.02,
+      "direction": "higher_better",
+      "critical": false
+    }
+  },
+  "pharmacy": {
+    "population": {
+      "weight": 0.25,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "hospitals_within_3km": {
+      "weight": 0.2,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "daily_footfall": {
+      "weight": 0.18,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "avg_rental_sqft_inr": {
+      "weight": 0.15,
+      "direction": "lower_better",
+      "penalty_threshold": 100,
+      "critical": false
+    },
+    "competitor_count": {
+      "weight": 0.12,
+      "direction": "lower_better",
+      "critical": false
+    },
+    "median_income_inr": {
+      "weight": 0.05,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "commercial_density_pct": {
+      "weight": 0.03,
+      "direction": "moderate_optimal",
+      "critical": false
+    },
+    "education_index": {
+      "weight": 0.02,
+      "direction": "higher_better",
+      "critical": false
+    }
+  },
+  "qsr": {
+    "daily_footfall": {
+      "weight": 0.26,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "commercial_density_pct": {
+      "weight": 0.2,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "population": {
+      "weight": 0.16,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "avg_rental_sqft_inr": {
+      "weight": 0.14,
+      "direction": "lower_better",
+      "penalty_threshold": 180,
+      "critical": false
+    },
+    "competitor_count": {
+      "weight": 0.12,
+      "direction": "lower_better",
+      "critical": false
+    },
+    "median_income_inr": {
+      "weight": 0.06,
+      "direction": "moderate_optimal",
+      "critical": false
+    },
+    "population_growth_pct": {
+      "weight": 0.04,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "education_index": {
+      "weight": 0.02,
+      "direction": "higher_better",
+      "critical": false
+    }
+  },
+  "salon": {
+    "median_income_inr": {
+      "weight": 0.26,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "daily_footfall": {
+      "weight": 0.2,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "commercial_density_pct": {
+      "weight": 0.16,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "competitor_count": {
+      "weight": 0.14,
+      "direction": "lower_better",
+      "critical": false
+    },
+    "avg_rental_sqft_inr": {
+      "weight": 0.12,
+      "direction": "lower_better",
+      "penalty_threshold": 150,
+      "critical": false
+    },
+    "education_index": {
+      "weight": 0.06,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "population": {
+      "weight": 0.04,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "population_growth_pct": {
+      "weight": 0.02,
+      "direction": "higher_better",
+      "critical": false
+    }
+  },
+  "coworking": {
+    "office_parks_within_2km": {
+      "weight": 0.24,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "median_income_inr": {
+      "weight": 0.2,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "education_index": {
+      "weight": 0.16,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "metro_station_within_1km": {
+      "weight": 0.14,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "avg_rental_sqft_inr": {
+      "weight": 0.12,
+      "direction": "lower_better",
+      "penalty_threshold": 140,
+      "critical": false
+    },
+    "daily_footfall": {
+      "weight": 0.08,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "competitor_count": {
+      "weight": 0.04,
+      "direction": "lower_better",
+      "critical": false
+    },
+    "population_growth_pct": {
+      "weight": 0.02,
+      "direction": "higher_better",
+      "critical": false
+    }
+  },
+  "clinic": {
+    "population": {
+      "weight": 0.28,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "median_income_inr": {
+      "weight": 0.2,
+      "direction": "higher_better",
+      "critical": true
+    },
+    "schools_within_2km": {
+      "weight": 0.14,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "competitor_count": {
+      "weight": 0.14,
+      "direction": "lower_better",
+      "critical": false
+    },
+    "avg_rental_sqft_inr": {
+      "weight": 0.1,
+      "direction": "lower_better",
+      "penalty_threshold": 110,
+      "critical": false
+    },
+    "daily_footfall": {
+      "weight": 0.08,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "education_index": {
+      "weight": 0.04,
+      "direction": "higher_better",
+      "critical": false
+    },
+    "population_growth_pct": {
+      "weight": 0.02,
+      "direction": "higher_better",
+      "critical": false
+    }
+  }
+}

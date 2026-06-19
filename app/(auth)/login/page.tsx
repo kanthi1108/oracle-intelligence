@@ -1,41 +1,114 @@
 // app/(auth)/login/page.tsx
-// ORACLE OAuth Gateway — PRD §6.3
-// Minimalist single-click OAuth entry: Google + GitHub only
-// No email/password fields, no magic links
+// ORACLE Authentication Gateway — Real Email & Phone Integration
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
-function getRedirectUrl(): string {
-    if (typeof window !== 'undefined') {
-        return `${window.location.origin}/callback`;
-    }
-    return '/callback';
-}
+type AuthMode = 'EMAIL' | 'PHONE';
 
 export default function LoginPage() {
-    const handleOAuthLogin = async (provider: 'google' | 'github') => {
-        const supabase = createClient();
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider,
-            options: {
-                redirectTo: getRedirectUrl(),
-            },
-        });
+    const [mode, setMode] = useState<AuthMode>('EMAIL');
+    const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const router = useRouter();
 
-        if (error) {
-            console.error(`[ORACLE] OAuth error (${provider}):`, error.message);
+    // Email state
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isSignUp, setIsSignUp] = useState(false);
+
+    // Phone state
+    const [phone, setPhone] = useState('');
+    const [otp, setOtp] = useState('');
+    const [otpSent, setOtpSent] = useState(false);
+
+    const runOnboardingAndRoute = async () => {
+        try {
+            const res = await fetch('/api/auth/onboarding', { method: 'POST' });
+            if (!res.ok) {
+                const data = await res.json();
+                setErrorMsg(`Onboarding failed: ${data.error}`);
+                setLoading(false);
+                return;
+            }
+            const data = await res.json();
+            if (data.profile?.role === 'admin') {
+                router.push('/dashboard');
+            } else {
+                router.push('/');
+            }
+        } catch (err) {
+            console.error('[ORACLE] Onboarding request failed:', err);
+            setErrorMsg('Network error during onboarding.');
+            setLoading(false);
+        }
+    };
+
+    const handleEmailAuth = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setErrorMsg(null);
+        
+        const supabase = createClient();
+        
+        if (isSignUp) {
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) {
+                setErrorMsg(error.message);
+                setLoading(false);
+                return;
+            }
+        } else {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                setErrorMsg(error.message);
+                setLoading(false);
+                return;
+            }
+        }
+        
+        // Success
+        await runOnboardingAndRoute();
+    };
+
+    const handlePhoneAuth = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setErrorMsg(null);
+        
+        const supabase = createClient();
+
+        if (!otpSent) {
+            const { error } = await supabase.auth.signInWithOtp({ phone });
+            if (error) {
+                setErrorMsg(error.message);
+                setLoading(false);
+                return;
+            }
+            setOtpSent(true);
+            setLoading(false);
+        } else {
+            const { error } = await supabase.auth.verifyOtp({ phone, token: otp, type: 'sms' });
+            if (error) {
+                setErrorMsg(error.message);
+                setLoading(false);
+                return;
+            }
+            
+            // Success
+            await runOnboardingAndRoute();
         }
     };
 
     return (
-        <main className="flex h-screen w-screen items-center justify-center bg-oracle-bg overflow-hidden">
+        <main className="flex min-h-screen w-screen items-center justify-center bg-oracle-bg overflow-hidden py-12">
             <div className="w-full max-w-[400px] px-8">
 
                 {/* System Branding */}
-                <div className="text-center mb-12">
+                <div className="text-center mb-8">
                     <div className="text-[10px] font-mono tracking-[0.3em] text-oracle-textSecondary uppercase mb-2">
                         System Authentication Gateway
                     </div>
@@ -48,50 +121,147 @@ export default function LoginPage() {
                     </p>
                 </div>
 
-                {/* OAuth Execution Buttons */}
-                <div className="space-y-3">
-                    {/* Google OAuth */}
+                {/* Mode Switcher */}
+                <div className="flex border-b border-oracle-border mb-6">
                     <button
-                        onClick={() => handleOAuthLogin('google')}
-                        className="w-full flex items-center justify-center gap-3 py-3.5 px-6
-                                   bg-oracle-panel border border-oracle-border
-                                   font-mono text-sm text-oracle-textPrimary tracking-wide
-                                   transition-all duration-200
-                                   hover:border-oracle-accent hover:bg-oracle-rig
-                                   focus:outline-none focus:border-oracle-accent
-                                   active:scale-[0.98]"
-                        id="btn-oauth-google"
+                        type="button"
+                        onClick={() => { setMode('EMAIL'); setErrorMsg(null); }}
+                        className={`flex-1 py-3 text-[11px] font-mono tracking-[0.2em] transition-colors ${mode === 'EMAIL' ? 'text-oracle-accent border-b-2 border-oracle-accent' : 'text-oracle-textSecondary hover:text-oracle-textPrimary'}`}
                     >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                        </svg>
-                        Continue with Google
+                        EMAIL
                     </button>
-
-                    {/* GitHub OAuth */}
                     <button
-                        onClick={() => handleOAuthLogin('github')}
-                        className="w-full flex items-center justify-center gap-3 py-3.5 px-6
-                                   bg-oracle-panel border border-oracle-border
-                                   font-mono text-sm text-oracle-textPrimary tracking-wide
-                                   transition-all duration-200
-                                   hover:border-oracle-accent hover:bg-oracle-rig
-                                   focus:outline-none focus:border-oracle-accent
-                                   active:scale-[0.98]"
-                        id="btn-oauth-github"
+                        type="button"
+                        onClick={() => { setMode('PHONE'); setErrorMsg(null); }}
+                        className={`flex-1 py-3 text-[11px] font-mono tracking-[0.2em] transition-colors ${mode === 'PHONE' ? 'text-oracle-accent border-b-2 border-oracle-accent' : 'text-oracle-textSecondary hover:text-oracle-textPrimary'}`}
                     >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-                        </svg>
-                        Continue with GitHub
+                        PHONE (OTP)
                     </button>
                 </div>
 
+                {errorMsg && (
+                    <div className="bg-[#e84747]/10 border border-[#e84747] text-[#e84747] p-3 text-xs font-mono tracking-wider mb-4 break-words">
+                        [ERROR]: {errorMsg}
+                    </div>
+                )}
+
+                {/* EMAIL FORM */}
+                {mode === 'EMAIL' && (
+                    <form onSubmit={handleEmailAuth} className="space-y-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-mono tracking-wider text-oracle-textSecondary uppercase">
+                                Email Address
+                            </label>
+                            <input
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full bg-oracle-panel border border-oracle-border font-mono text-sm p-3 focus:outline-none focus:border-oracle-accent text-oracle-textPrimary placeholder:text-oracle-border transition-colors"
+                                placeholder="operator@oracle.ai"
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-mono tracking-wider text-oracle-textSecondary uppercase">
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full bg-oracle-panel border border-oracle-border font-mono text-sm p-3 focus:outline-none focus:border-oracle-accent text-oracle-textPrimary placeholder:text-oracle-border transition-colors"
+                                placeholder="••••••••"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-3.5 mt-2 bg-oracle-accent text-oracle-bg font-mono text-sm tracking-wide font-bold transition-all duration-200 hover:bg-oracle-accent/90 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                        >
+                            {loading ? 'PROCESSING...' : (isSignUp ? 'REGISTER NEW ACCOUNT' : 'SIGN IN TO WORKSPACE')}
+                        </button>
+
+                        <div className="text-center pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsSignUp(!isSignUp)}
+                                className="text-[11px] font-mono tracking-wider text-oracle-textSecondary hover:text-oracle-textPrimary transition-colors"
+                            >
+                                {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Register'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {/* PHONE FORM */}
+                {mode === 'PHONE' && (
+                    <form onSubmit={handlePhoneAuth} className="space-y-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-mono tracking-wider text-oracle-textSecondary uppercase">
+                                Mobile Number (with country code)
+                            </label>
+                            <input
+                                type="tel"
+                                required
+                                disabled={otpSent}
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                className="w-full bg-oracle-panel border border-oracle-border font-mono text-sm p-3 focus:outline-none focus:border-oracle-accent text-oracle-textPrimary placeholder:text-oracle-border transition-colors disabled:opacity-50"
+                                placeholder="+1234567890"
+                            />
+                        </div>
+
+                        {otpSent && (
+                            <div className="space-y-1 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <label className="text-[10px] font-mono tracking-wider text-oracle-textSecondary uppercase">
+                                    One-Time Password (OTP)
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                    className="w-full bg-oracle-panel border border-oracle-border font-mono text-sm p-3 focus:outline-none focus:border-oracle-accent text-oracle-textPrimary placeholder:text-oracle-border transition-colors text-center tracking-[0.5em]"
+                                    placeholder="000000"
+                                    maxLength={6}
+                                />
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-3.5 mt-2 bg-oracle-accent text-oracle-bg font-mono text-sm tracking-wide font-bold transition-all duration-200 hover:bg-oracle-accent/90 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                        >
+                            {loading ? 'PROCESSING...' : (otpSent ? 'VERIFY OTP & LOGIN' : 'REQUEST OTP')}
+                        </button>
+                        
+                        {otpSent && (
+                            <div className="text-center pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setOtpSent(false); setOtp(''); }}
+                                    className="text-[11px] font-mono tracking-wider text-oracle-textSecondary hover:text-oracle-textPrimary transition-colors"
+                                >
+                                    Change Phone Number
+                                </button>
+                            </div>
+                        )}
+                    </form>
+                )}
+
+                {/* Hackathon Demonstration Callout */}
+                <div className="mt-8 pt-4 border-t border-oracle-border text-center space-y-2">
+                    <p className="text-[11px] font-mono tracking-wider text-oracle-textSecondary/70">
+                        Judge Account: <span className="text-[#a88a4e]">admin@oracle.ai</span> | Pass: <span className="text-[#a88a4e]">oracle2026</span>
+                    </p>
+                </div>
+
                 {/* Footer Divider */}
-                <div className="mt-10 pt-6 border-t border-oracle-border text-center">
+                <div className="mt-6 pt-4 text-center">
                     <p className="text-[10px] font-mono text-oracle-textSecondary tracking-wider uppercase">
                         Track 2C · SummerSaaS AI Hackathon 2026
                     </p>

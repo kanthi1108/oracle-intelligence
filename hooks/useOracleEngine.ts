@@ -1,7 +1,7 @@
 // hooks/useOracleEngine.ts
 // ORACLE Engine Hook — PRD §3.2 Normalised Weighted Score Formula
 // Provides real-time evaluation state, composite scores, variance matrix, and causality feed
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { BusinessType, MetricKey, ORACLE_WEIGHTS, METRIC_LABELS } from '@/lib/oracle-engine/weights';
 import { calculateDeltaVariance, detectFlipVariable } from '@/lib/oracle-engine/delta';
@@ -97,25 +97,77 @@ export function useOracleEngine() {
     const [locationAId, setLocationAId] = useState<string>('1'); // Default: Madhapur
     const [locationBId, setLocationBId] = useState<string>('2'); // Default: Gachibowli
 
+    const setLocationASafe = (id: string) => {
+        if (id === locationBId) {
+            setLocationBId(locationAId);
+        }
+        setLocationAId(id);
+    };
+
+    const setLocationBSafe = (id: string) => {
+        if (id === locationAId) {
+            setLocationAId(locationBId);
+        }
+        setLocationBId(id);
+    };
+
     // Real-time slider modifiers for simulation adjustments
     const [competitorModifierA, setCompetitorModifierA] = useState<number>(0);
     const [rentModifierA, setRentModifierA] = useState<number>(0);
     const [incomeModifierA, setIncomeModifierA] = useState<number>(0);
 
-    const [locations, setLocations] = useState<LocationData[]>(SEED_LOCATIONS);
+    const [creditsExhausted, setCreditsExhausted] = useState<boolean>(false);
+    const [creditBalance, setCreditBalance] = useState<number>(150); // Live reactive balance
+    const [reportStatus, setReportStatus] = useState<'Requested' | 'Processing' | 'Ready'>('Ready');
+    const [userRole, setUserRole] = useState<string>('member');
+    const [roleResolved, setRoleResolved] = useState<boolean>(false);
+    const prevChoiceRef = useRef<string>('');
 
+    const [locations, setLocations] = useState<LocationData[]>(SEED_LOCATIONS);
+    const [dynamicWeights, setDynamicWeights] = useState<typeof ORACLE_WEIGHTS>(ORACLE_WEIGHTS);
+
+    // Initial Data Fetch
     useEffect(() => {
         const fetchLocations = async () => {
-            const supabase = createClient();
-            const { data, error } = await supabase.from('locations').select('*');
-            if (data && data.length > 0) {
-                setLocations(data as LocationData[]);
-            } else if (error) {
-                console.error('[ORACLE] Failed to fetch locations:', error);
+            try {
+                const res = await fetch('/api/locations');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.length > 0) {
+                        setLocations(data);
+                        setLocationAId(data[0].id);
+                        if (data.length > 1) {
+                            setLocationBId(data[1].id);
+                        }
+                    }
+                } else {
+                    console.error('[ORACLE] Failed to fetch locations, status:', res.status);
+                }
+            } catch (err) {
+                console.error('[ORACLE] Exception fetching locations:', err);
             }
         };
+
+        const fetchWeights = async () => {
+            try {
+                const res = await fetch('/api/admin/weights');
+                if (res.ok) {
+                    const data = await res.json();
+                    setDynamicWeights(data);
+                }
+            } catch (err) {
+                console.error('[ORACLE] Exception fetching weights:', err);
+            }
+        };
+
         fetchLocations();
+        fetchWeights();
     }, []);
+
+    // Phase 5: Core Oracle Weight Extraction
+    const activeWeights = useMemo(() => {
+        return dynamicWeights[activeProfile];
+    }, [activeProfile, dynamicWeights]);
 
     // Dynamic simulation payload calculations
     const processedLocations = useMemo(() => {
@@ -135,7 +187,7 @@ export function useOracleEngine() {
     const evaluation = useMemo(() => {
         const locA = processedLocations.find(l => l.id === locationAId) || processedLocations[0];
         const locB = processedLocations.find(l => l.id === locationBId) || processedLocations[1];
-        const weights = ORACLE_WEIGHTS[activeProfile];
+        const weights = dynamicWeights[activeProfile];
 
         // All MetricKey fields across both locations for normalisation bounds
         const allMetricKeys = Object.keys(weights) as MetricKey[];
@@ -245,25 +297,35 @@ export function useOracleEngine() {
         causalityEvents.push({
             timestamp: ts(3200),
             type: 'RECOMMENDATION',
-            message: `RECOMMENDATION DETECTED: Engine pivot triggered. ${winnerName} outpaces ${loserName}.`,
+            message: `Strategic Alignment Confirmed: Engine designates ${winnerName} as primary target over ${loserName}.`,
             color: 'green',
         });
 
-        // High-impact business signals (replaces NORMALISE/WEIGHT_APPLIED/DELTA_COMPUTED)
+        // High-impact business signals
         varianceMatrix.slice(0, 4).forEach((row, i) => {
-            const label = METRIC_LABELS[row.metric];
             let signalMsg = '';
             const locName = row.verdict === 'FAVOURS' ? winnerName : loserName;
             let eventType: CausalityEventType = 'MARKET_SIGNAL';
             
+            // Humanize the metric name for the log string
+            const humanMetric = row.metric === 'median_income_inr' ? 'Income' :
+                                row.metric === 'commercial_density_pct' ? 'Commercial Density' :
+                                row.metric === 'daily_footfall' ? 'Daily Footfall' :
+                                row.metric === 'population' ? 'Base Population' :
+                                row.metric === 'population_growth_pct' ? 'Population Growth' :
+                                row.metric === 'education_index' ? 'Education Index' :
+                                row.metric === 'competitor_count' ? 'Competitor Saturation' :
+                                METRIC_LABELS[row.metric].replace(/ \(.+\)/, ''); // Fallback
+            
             if (row.metric === 'competitor_count') {
                 eventType = 'COMPETITOR_INFLUX';
-                signalMsg = `COMPETITOR INFLUX: ${locName} competitor count shifted to ${row.verdict === 'FAVOURS' ? Math.min(row.valA, row.valB) : Math.max(row.valA, row.valB)}.`;
+                signalMsg = `Market Saturation Update: ${locName} competitor footprint shifts to ${row.verdict === 'FAVOURS' ? Math.min(row.valA, row.valB) : Math.max(row.valA, row.valB)}.`;
             } else if (row.metric === 'avg_rental_sqft_inr') {
                 eventType = 'RENT_ESCALATION';
-                signalMsg = `RENT ESCALATION: ${locName} faces operational friction at ₹${Math.max(row.valA, row.valB)}/sqft.`;
+                signalMsg = `Overhead Pressure Alert: ${locName} rent climbs to ₹${Math.max(row.valA, row.valB)}/sqft`;
             } else {
-                signalMsg = `MARKET SIGNAL: ${locName} holds a +${Math.abs(row.deltaPct).toFixed(1)}% ${label} premium.`;
+                const leadString = i % 2 === 0 ? 'Advantage Detected' : 'Lead Confirmed';
+                signalMsg = `${humanMetric} ${leadString}: ${locName} +${Math.abs(row.deltaPct).toFixed(1)}%`;
             }
 
             causalityEvents.push({
@@ -296,43 +358,12 @@ export function useOracleEngine() {
             }
         });
 
-        // COMPOSITE_SCORE replacement
-        causalityEvents.push({
-            timestamp: ts(800),
-            type: 'EVALUATION_MATRIX',
-            message: `Evaluation matrix generated. Absolute variance computed across all tracked inputs.`,
-            color: 'green',
-        });
-
-        // FLIP_ANALYSIS
-        if (flipVariable) {
-            const stabilityLabel = flipVariable.isStable ? 'VERDICT STABLE' : 'VERDICT VULNERABLE';
-            causalityEvents.push({
-                timestamp: ts(500),
-                type: 'FLIP_ANALYSIS',
-                message: `variable=${flipVariable.variable} required_swing=+${flipVariable.requiredSwingPct}%`,
-                color: flipVariable.isStable ? 'green' : 'red',
-            });
-            causalityEvents.push({
-                timestamp: ts(490),
-                type: 'FLIP_ANALYSIS',
-                message: `ASSESSMENT: swing_required ${flipVariable.isStable ? '>' : '<='} 15% — ${stabilityLabel}`,
-                color: flipVariable.isStable ? 'gray' : 'red',
-            });
-        } else {
-            causalityEvents.push({
-                timestamp: ts(500),
-                type: 'FLIP_ANALYSIS',
-                message: 'No single decisive vulnerability detected. Core infrastructure variables dictate verdict.',
-                color: 'gray',
-            });
-        }
-
+        // Removed EVALUATION_MATRIX and FLIP_ANALYSIS logging loops per Phase 7 directive
         // VERDICT_ISSUED replacement
         causalityEvents.push({
             timestamp: ts(200),
             type: 'PIVOT_FINALIZED',
-            message: `Recommendation pivot finalized. ${winnerName} isolated as superior expansion target.`,
+            message: `Final Assessment: ${winnerName} is confirmed as the optimal expansion target.`,
             color: 'yellow',
         });
 
@@ -340,13 +371,13 @@ export function useOracleEngine() {
         causalityEvents.push({
             timestamp: ts(100),
             type: 'CREDIT_DEDUCTED',
-            message: 'balance_before=9 balance_after=8',
+            message: 'Ledger Updated: 1 evaluation credit consumed for this simulation.',
             color: 'gray',
         });
         causalityEvents.push({
             timestamp: ts(0),
             type: 'REPORT_SAVED',
-            message: `report_id=<uuid> flags=[${!isDecisive ? 'MARGINAL' : ''}] pdf_available=FALSE`,
+            message: `Execution finalized. Session intelligence and logic parameters archived.`,
             color: 'gray',
         });
 
@@ -364,15 +395,95 @@ export function useOracleEngine() {
             flipVariable,
             causalityEvents,
         };
-    }, [processedLocations, activeProfile, locationAId, locationBId]);
+    }, [processedLocations, activeProfile, locationAId, locationBId, dynamicWeights]);
+
+    // Phase 9: Report Status Tracking Pipeline
+    const runPipeline = async (onComplete?: () => void) => {
+        if (!roleResolved) return; // Gate: wait for page.tsx to resolve the role
+        if (creditsExhausted && userRole !== 'admin') return; // Gate: already exhausted
+
+        setReportStatus('Requested');
+        
+        // Short artificial pause to show the transition
+        await new Promise(r => setTimeout(r, 100));
+        setReportStatus('Processing');
+
+        // Consume credit — admin is fully bypassed
+        try {
+            if (userRole === 'admin') {
+                // Admin: skip credit consumption entirely
+            } else {
+                const res = await fetch('/api/credits/consume', { method: 'POST' });
+                const data = await res.json();
+                if (data.exhausted) {
+                    setCreditsExhausted(true);
+                    setCreditBalance(0);
+                    setReportStatus('Ready');
+                    return;
+                }
+                // Update live balance from server response
+                if (typeof data.balance === 'number') {
+                    setCreditBalance(data.balance);
+                }
+            }
+        } catch (err) {
+            console.error('[ORACLE] Credit consumption failed', err);
+        }
+
+        // Simulate realistic 2-second calculation delay
+        await new Promise(r => setTimeout(r, 2000));
+        
+        setReportStatus('Ready');
+
+        // Write report history
+        try {
+            await fetch('/api/reports/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    business_type: activeProfile,
+                    location_a_id: locationAId,
+                    location_b_id: locationBId,
+                    winner_location_id: evaluation.primaryChoice === evaluation.locA.locality_name ? locationAId : locationBId,
+                    verdict_confidence: evaluation.confidencePct,
+                    verdict_is_decisive: evaluation.isDecisive,
+                    score_location_a: evaluation.scoreA,
+                    score_location_b: evaluation.scoreB,
+                    primary_delta_pct: evaluation.varianceMatrix[0]?.deltaPct || 0,
+                })
+            });
+            if (onComplete) onComplete();
+        } catch (err) {
+            console.error('[ORACLE] Failed to save report history', err);
+        }
+
+        // Fire Telegram webhook if pivot occurred
+        const currentChoice = evaluation.primaryChoice;
+        if (prevChoiceRef.current && prevChoiceRef.current !== currentChoice && currentChoice) {
+            fetch('/api/evaluation/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    context: {
+                        BUSINESS_TYPE: activeProfile.toUpperCase(),
+                        LOC_A: evaluation.locA.locality_name,
+                        LOC_B: evaluation.locB.locality_name,
+                        WINNER: currentChoice,
+                        CONFIDENCE: evaluation.confidencePct,
+                    }
+                })
+            }).catch(console.error);
+        }
+        prevChoiceRef.current = currentChoice;
+    };
 
     return {
         activeProfile,
         setActiveProfile,
         locationAId,
-        setLocationAId,
+        setLocationAId: setLocationASafe,
         locationBId,
-        setLocationBId,
+        setLocationBId: setLocationBSafe,
         competitorModifierA,
         setCompetitorModifierA,
         rentModifierA,
@@ -380,6 +491,14 @@ export function useOracleEngine() {
         incomeModifierA,
         setIncomeModifierA,
         evaluation,
-        allLocations: locations
+        allLocations: locations,
+        creditsExhausted: userRole === 'admin' ? false : creditsExhausted,
+        creditBalance,
+        setCreditBalance,
+        reportStatus,
+        userRole,
+        setUserRole,
+        setRoleResolved,
+        runPipeline
     };
 }

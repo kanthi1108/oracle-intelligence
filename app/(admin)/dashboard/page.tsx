@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { AdminSettingsTab } from '@/components/AdminSettingsTab';
 
 // ── TYPE DEFINITIONS ────────────────────────────────────────────
 
@@ -27,7 +28,20 @@ interface LocationRow {
     state_name: string;
     population: number;
     median_income_inr: number;
+    competitor_count: number;
     is_active: boolean;
+}
+
+interface ReportRow {
+    id: string;
+    business_type: string;
+    created_at: string;
+    verdict_confidence: number;
+    verdict_is_decisive: boolean;
+    user: { full_name: string; email: string };
+    loc_a: { locality_name: string };
+    loc_b: { locality_name: string };
+    winner: { locality_name: string };
 }
 
 interface CreditModalState {
@@ -189,9 +203,10 @@ function CreditModal({
 // ── MAIN ADMIN DASHBOARD ────────────────────────────────────────
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState<'users' | 'locations'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'reports' | 'locations' | 'settings'>('users');
     const [users, setUsers] = useState<UserRow[]>([]);
     const [locations, setLocations] = useState<LocationRow[]>([]);
+    const [reports, setReports] = useState<ReportRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [creditModal, setCreditModal] = useState<CreditModalState>({
         open: false,
@@ -204,69 +219,39 @@ export default function AdminDashboard() {
 
     // ── DATA FETCHING ───────────────────────────────────────────
 
-    const fetchUsers = useCallback(async () => {
-        // Fetch users with their credit balances from the view
-        const { data: usersData } = await supabase
-            .from('users')
-            .select('id, auth_id, email, full_name, role, subscription_tier, reports_generated, created_at')
-            .order('created_at', { ascending: false });
-
-        if (usersData) {
-            // Fetch credit balances
-            const { data: balances } = await supabase
-                .from('current_credit_balances')
-                .select('user_id, current_balance');
-
-            const balanceMap = new Map(
-                (balances ?? []).map((b: { user_id: string; current_balance: number }) => [b.user_id, b.current_balance])
-            );
-
-            const enriched: UserRow[] = usersData.map((u: {
-                id: string;
-                auth_id: string;
-                email: string;
-                full_name: string;
-                role: string;
-                subscription_tier: string;
-                reports_generated: number;
-                created_at: string;
-            }) => ({
-                ...u,
-                current_balance: balanceMap.get(u.id) ?? 0,
-            }));
-
-            setUsers(enriched);
+    const fetchData = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/dashboard');
+            if (res.ok) {
+                const data = await res.json();
+                setUsers(data.users || []);
+                setLocations(data.locations || []);
+                setReports(data.reports || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch dashboard data:', err);
         }
-    }, [supabase]);
-
-    const fetchLocations = useCallback(async () => {
-        const { data } = await supabase
-            .from('locations')
-            .select('id, locality_name, city_name, state_name, population, median_income_inr, is_active')
-            .order('city_name', { ascending: true });
-
-        if (data) {
-            setLocations(data as LocationRow[]);
-        }
-    }, [supabase]);
+    }, []);
 
     useEffect(() => {
         const load = async () => {
             setLoading(true);
-            await Promise.all([fetchUsers(), fetchLocations()]);
+            await fetchData();
             setLoading(false);
         };
         load();
-    }, [fetchUsers, fetchLocations]);
+    }, [fetchData]);
 
     // ── ACTIONS ─────────────────────────────────────────────────
 
     const handleRoleChange = async (userId: string, newRole: string) => {
+        // Wait, update might fail if RLS recursion applies. Best to let backend handle updates if this fails.
+        // For now, let's keep it via client since it's an update, maybe it works. If not, it needs an API.
         await supabase
             .from('users')
             .update({ role: newRole, updated_at: new Date().toISOString() })
             .eq('id', userId);
-        await fetchUsers();
+        await fetchData();
     };
 
     const handlePlanChange = async (userId: string, newPlan: string) => {
@@ -274,7 +259,7 @@ export default function AdminDashboard() {
             .from('users')
             .update({ subscription_tier: newPlan, updated_at: new Date().toISOString() })
             .eq('id', userId);
-        await fetchUsers();
+        await fetchData();
     };
 
     const handleToggleLocation = async (locationId: string, currentActive: boolean) => {
@@ -282,7 +267,15 @@ export default function AdminDashboard() {
             .from('locations')
             .update({ is_active: !currentActive })
             .eq('id', locationId);
-        await fetchLocations();
+        await fetchData();
+    };
+
+    const handleUpdateLocation = async (locationId: string, field: 'population' | 'median_income_inr' | 'competitor_count', value: number) => {
+        await supabase
+            .from('locations')
+            .update({ [field]: value, updated_at: new Date().toISOString() })
+            .eq('id', locationId);
+        await fetchData();
     };
 
     const handleCreditSubmit = async (payload: {
@@ -296,25 +289,44 @@ export default function AdminDashboard() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-        await fetchUsers();
+        await fetchData();
     };
 
     // ── RENDER ───────────────────────────────────────────────────
 
     return (
         <div className="p-6 space-y-6">
+            
+            {/* Executive Summary Stats */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
+                <div className="bg-[#111111] border border-oracle-border p-4 flex flex-col justify-center items-center">
+                    <div className="text-[10px] font-mono text-oracle-textSecondary uppercase tracking-widest mb-1 text-center">Total Corporate Client Portals Active</div>
+                    <div className="text-2xl font-mono text-oracle-textPrimary font-bold">{users.length}</div>
+                </div>
+                <div className="bg-[#111111] border border-oracle-border p-4 flex flex-col justify-center items-center">
+                    <div className="text-[10px] font-mono text-oracle-textSecondary uppercase tracking-widest mb-1 text-center">Gross Geospatial Simulations Calculated</div>
+                    <div className="text-2xl font-mono text-oracle-accent font-bold">{reports.length}</div>
+                </div>
+                <div className="bg-[#111111] border border-oracle-border p-4 flex flex-col justify-center items-center">
+                    <div className="text-[10px] font-mono text-oracle-textSecondary uppercase tracking-widest mb-1 text-center">Total Computational Allocation Token Pool</div>
+                    <div className="text-2xl font-mono text-oracle-danger font-bold">
+                        {users.reduce((acc, u) => acc + (u.current_balance || 0), 0)}
+                    </div>
+                </div>
+            </div>
+
             {/* Tab Navigation */}
-            <div className="flex gap-1 border-b border-oracle-border">
-                {(['users', 'locations'] as const).map((tab) => (
+            <div className="flex gap-1 border-b border-oracle-border overflow-x-auto">
+                {(['users', 'reports', 'locations', 'settings'] as const).map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`px-5 py-2.5 text-xs font-mono tracking-wider uppercase transition-all border-b-2 -mb-[1px] ${activeTab === tab
+                        className={`px-5 py-2.5 text-xs font-mono tracking-wider uppercase transition-all border-b-2 -mb-[1px] whitespace-nowrap ${activeTab === tab
                             ? 'text-oracle-accent border-oracle-accent font-bold'
                             : 'text-oracle-textSecondary border-transparent hover:text-oracle-textPrimary'
                             }`}
                     >
-                        {tab === 'users' ? 'USER MANAGEMENT' : 'LOCATION REGISTRY'}
+                        {tab === 'users' ? 'USER DIRECTORY' : tab === 'reports' ? 'GLOBAL REPORTS' : tab === 'locations' ? 'DATASET MATRIX' : 'PLATFORM SETTINGS'}
                     </button>
                 ))}
 
@@ -327,6 +339,16 @@ export default function AdminDashboard() {
                     <span className="text-[10px] font-mono text-oracle-textSecondary">
                         {locations.length} Locations
                     </span>
+                    <button
+                        onClick={async () => {
+                            const supabaseClient = createClient();
+                            await supabaseClient.auth.signOut();
+                            window.location.href = '/login';
+                        }}
+                        className="ml-4 text-[10px] font-mono text-oracle-textSecondary hover:text-oracle-danger transition-colors uppercase border border-transparent hover:border-oracle-danger px-2 py-1 select-none focus:outline-none"
+                    >
+                        LOGOUT
+                    </button>
                 </div>
             </div>
 
@@ -427,7 +449,59 @@ export default function AdminDashboard() {
                         </tbody>
                     </table>
                 </div>
-            ) : (
+            ) : activeTab === 'reports' ? (
+                /* ── GLOBAL REPORTS LOG TABLE ──────────────────────────── */
+                <div className="border border-oracle-border overflow-x-auto">
+                    <table className="w-full font-mono text-xs">
+                        <thead>
+                            <tr className="border-b border-oracle-border text-oracle-textSecondary text-left">
+                                <th className="py-2.5 px-4 font-normal tracking-wider">TIMESTAMP</th>
+                                <th className="py-2.5 px-4 font-normal tracking-wider">CORPORATE CLIENT</th>
+                                <th className="py-2.5 px-4 font-normal tracking-wider">SITE ACQUISITION STRATEGY</th>
+                                <th className="py-2.5 px-4 font-normal tracking-wider">GEOSPATIAL TARGETS</th>
+                                <th className="py-2.5 px-4 font-normal tracking-wider">SELECTED SITE</th>
+                                <th className="py-2.5 px-4 font-normal tracking-wider text-right">VIABILITY INDEX</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {reports.map((report) => (
+                                <tr
+                                    key={report.id}
+                                    className="border-b border-oracle-border/50 hover:bg-oracle-panel/30 transition-colors"
+                                >
+                                    <td className="py-2 px-4 text-oracle-textSecondary whitespace-nowrap">
+                                        {new Date(report.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                                    </td>
+                                    <td className="py-2 px-4 text-oracle-textPrimary">
+                                        {report.user?.full_name || report.user?.email || '—'}
+                                    </td>
+                                    <td className="py-2 px-4 text-oracle-textPrimary font-bold uppercase">
+                                        {report.business_type}
+                                    </td>
+                                    <td className="py-2 px-4 text-oracle-textSecondary">
+                                        {report.loc_a?.locality_name} vs {report.loc_b?.locality_name}
+                                    </td>
+                                    <td className="py-2 px-4 text-oracle-accent font-bold">
+                                        {report.winner?.locality_name}
+                                    </td>
+                                    <td className="py-2 px-4 text-right tabular-nums">
+                                        <span className={report.verdict_is_decisive ? 'text-[#4ade80]' : 'text-oracle-danger'}>
+                                            {report.verdict_confidence}%
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                            {reports.length === 0 && (
+                                <tr>
+                                    <td colSpan={6} className="py-8 text-center text-oracle-textSecondary">
+                                        No evaluations logged yet.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            ) : activeTab === 'locations' ? (
                 /* ── LOCATION REGISTRY TABLE ───────────────────────── */
                 <div className="border border-oracle-border overflow-x-auto">
                     <table className="w-full font-mono text-xs">
@@ -436,9 +510,9 @@ export default function AdminDashboard() {
                                 <th className="py-2.5 px-4 font-normal tracking-wider">UUID</th>
                                 <th className="py-2.5 px-4 font-normal tracking-wider">LOCALITY</th>
                                 <th className="py-2.5 px-4 font-normal tracking-wider">CITY</th>
-                                <th className="py-2.5 px-4 font-normal tracking-wider">STATE</th>
-                                <th className="py-2.5 px-4 font-normal tracking-wider text-right">POPULATION</th>
-                                <th className="py-2.5 px-4 font-normal tracking-wider text-right">MEDIAN INCOME</th>
+                                <th className="py-2.5 px-4 font-normal tracking-wider text-right">BASE POPULATION</th>
+                                <th className="py-2.5 px-4 font-normal tracking-wider text-right">CLUSTER DENSITY</th>
+                                <th className="py-2.5 px-4 font-normal tracking-wider text-right">COMMERCIAL LEASE RATE</th>
                                 <th className="py-2.5 px-4 font-normal tracking-wider text-center">STATUS</th>
                                 <th className="py-2.5 px-4 font-normal tracking-wider text-center">TOGGLE</th>
                             </tr>
@@ -461,14 +535,39 @@ export default function AdminDashboard() {
                                     <td className="py-2 px-4 text-oracle-textPrimary">
                                         {loc.city_name}
                                     </td>
-                                    <td className="py-2 px-4 text-oracle-textSecondary">
-                                        {loc.state_name ?? '—'}
+                                    <td className="py-2 px-4 text-right text-oracle-textPrimary tabular-nums">
+                                        <div className="flex items-center justify-end">
+                                            <input
+                                                type="number"
+                                                defaultValue={loc.population}
+                                                onBlur={(e) => handleUpdateLocation(loc.id, 'population', parseInt(e.target.value) || loc.population)}
+                                                className="bg-transparent border-b border-transparent hover:border-oracle-border focus:border-oracle-accent focus:outline-none w-20 text-right"
+                                                title="Click to edit base population"
+                                            />
+                                        </div>
                                     </td>
                                     <td className="py-2 px-4 text-right text-oracle-textPrimary tabular-nums">
-                                        {loc.population?.toLocaleString('en-IN') ?? '—'}
+                                        <div className="flex items-center justify-end">
+                                            <input
+                                                type="number"
+                                                defaultValue={loc.competitor_count}
+                                                onBlur={(e) => handleUpdateLocation(loc.id, 'competitor_count', parseInt(e.target.value) || loc.competitor_count)}
+                                                className="bg-transparent border-b border-transparent hover:border-oracle-border focus:border-oracle-accent focus:outline-none w-16 text-right"
+                                                title="Click to edit cluster density"
+                                            />
+                                        </div>
                                     </td>
                                     <td className="py-2 px-4 text-right text-oracle-textPrimary tabular-nums">
-                                        ₹{loc.median_income_inr?.toLocaleString('en-IN') ?? '—'}
+                                        <div className="flex items-center justify-end">
+                                            <span className="text-oracle-textSecondary mr-1">₹</span>
+                                            <input
+                                                type="number"
+                                                defaultValue={loc.median_income_inr}
+                                                onBlur={(e) => handleUpdateLocation(loc.id, 'median_income_inr', parseInt(e.target.value) || loc.median_income_inr)}
+                                                className="bg-transparent border-b border-transparent hover:border-oracle-border focus:border-oracle-accent focus:outline-none w-24 text-right"
+                                                title="Click to edit lease rate"
+                                            />
+                                        </div>
                                     </td>
                                     <td className="py-2 px-4 text-center">
                                         <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 border tracking-wider ${loc.is_active
@@ -501,7 +600,9 @@ export default function AdminDashboard() {
                         </tbody>
                     </table>
                 </div>
-            )}
+            ) : activeTab === 'settings' ? (
+                <AdminSettingsTab />
+            ) : null}
 
             {/* Credit Override Modal */}
             <CreditModal

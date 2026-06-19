@@ -3,7 +3,7 @@
 // Validates credits → optimistic lock debit → generates report → confirms or refunds
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { BusinessType } from '@/lib/oracle-engine/weights';
 import { dispatchLifecycleEvent } from '@/lib/telegram';
 
@@ -46,8 +46,10 @@ async function creditGuard(
         };
     }
 
+    const serviceSupabase = createServiceRoleClient();
+
     // Step 2: Resolve internal user ID from auth_id
-    const { data: userRow, error: userError } = await supabase
+    const { data: userRow, error: userError } = await serviceSupabase
         .from('users')
         .select('id')
         .eq('auth_id', user.id)
@@ -84,7 +86,7 @@ async function creditGuard(
     }
 
     // Step 5: Read current balance from materialized view
-    const { data: balance, error: balanceError } = await supabase
+    const { data: balance, error: balanceError } = await serviceSupabase
         .from('current_credit_balances')
         .select('current_balance')
         .eq('user_id', userId)
@@ -138,6 +140,7 @@ export async function POST(request: NextRequest) {
 
         // Initialize server-side Supabase client
         const supabase = createServerSupabaseClient();
+        const serviceSupabase = createServiceRoleClient();
 
         // ── CREDIT GUARD EXECUTION — PRD §5.1 ──
         const guardResult = await creditGuard(supabase, {
@@ -162,7 +165,7 @@ export async function POST(request: NextRequest) {
         const balanceAfter = guardResult.currentBalance - 1;
         const idempotencyKey = `report_${guardResult.userId}_${Date.now()}`;
 
-        const { error: debitError } = await supabase
+        const { error: debitError } = await serviceSupabase
             .from('credits')
             .insert({
                 user_id: guardResult.userId,
@@ -187,13 +190,13 @@ export async function POST(request: NextRequest) {
         }
 
         // ── FETCH LOCATION SNAPSHOTS ──
-        const { data: locationA } = await supabase
+        const { data: locationA } = await serviceSupabase
             .from('locations')
             .select('*')
             .eq('id', locationAId)
             .single();
 
-        const { data: locationB } = await supabase
+        const { data: locationB } = await serviceSupabase
             .from('locations')
             .select('*')
             .eq('id', locationBId)
@@ -201,7 +204,7 @@ export async function POST(request: NextRequest) {
 
         if (!locationA || !locationB) {
             // Refund the debit — location not found
-            await supabase
+            await serviceSupabase
                 .from('credits')
                 .insert({
                     user_id: guardResult.userId,
@@ -232,13 +235,13 @@ export async function POST(request: NextRequest) {
         // the credit was consumed and locations were validated.
 
         // Update user's reports_generated counter and last_report timestamp
-        const { data: currentUser } = await supabase
+        const { data: currentUser } = await serviceSupabase
             .from('users')
             .select('reports_generated')
             .eq('id', guardResult.userId)
             .single();
 
-        await supabase
+        await serviceSupabase
             .from('users')
             .update({
                 reports_generated: (currentUser?.reports_generated ?? 0) + 1,

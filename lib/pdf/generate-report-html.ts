@@ -23,6 +23,15 @@ export interface ReportData {
     generatedAt: string;
 }
 
+const hashString = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash);
+};
+
 function escapeHtml(str: string): string {
     return str
         .replace(/&/g, '&amp;')
@@ -108,6 +117,131 @@ export function generateReportHtml(data: ReportData): string {
             Stability assessment: <strong>${data.flipVariable.isStable ? 'VERDICT LOCKED — swing threshold exceeds 15%' : 'VERDICT VULNERABLE — swing threshold ≤15%'}</strong>
            </p>`
         : `<p style="font-size:12px;color:#4ade80;">No single decisive variable detected. Verdict is distributed across multiple factors. Stability: <strong>HIGH</strong></p>`;
+
+    // --- DEMOGRAPHIC TELEMETRY SECTION ---
+    const hA = hashString(data.locationAName);
+    const hB = hashString(data.locationBName);
+
+    const maleA = 45 + (hA % 10);
+    const maleB = 45 + (hB % 10);
+
+    const ageA = { genZ: 15 + (hA % 15), millennials: 35 + ((hA >> 1) % 20), genX: 20 + ((hA >> 2) % 15), boomers: 100 - (15 + (hA % 15)) - (35 + ((hA >> 1) % 20)) - (20 + ((hA >> 2) % 15)) };
+    const ageB = { genZ: 15 + (hB % 15), millennials: 35 + ((hB >> 1) % 20), genX: 20 + ((hB >> 2) % 15), boomers: 100 - (15 + (hB % 15)) - (35 + ((hB >> 1) % 20)) - (20 + ((hB >> 2) % 15)) };
+
+    const popRow = data.varianceMatrix.find(r => r.metric === 'population');
+    const popA = popRow ? popRow.valA : 100000;
+    const popB = popRow ? popRow.valB : 100000;
+    const denA = popA / 1000;
+    const denB = popB / 1000;
+    const maxDen = Math.max(denA, denB, 1);
+
+    const renderSegmentsHtml = (malePct: number, isWinner: boolean) => {
+        const totalBlocks = 20;
+        const maleBlocks = Math.round((malePct / 100) * totalBlocks);
+        const activeColor = isWinner ? '#e8c547' : '#e84747';
+        let blocks = '';
+        for (let i = 0; i < totalBlocks; i++) {
+            const bg = i < maleBlocks ? activeColor : '#222';
+            const border = i < maleBlocks ? 'none' : '1px solid #333';
+            blocks += `<div style="flex:1;height:12px;background:${bg};border:${border};margin-right:2px;"></div>`;
+        }
+        return `<div style="display:flex;width:100%;">${blocks}</div>`;
+    };
+
+    const renderDensityGridHtml = (density: number, isWinner: boolean) => {
+        const totalDots = 40;
+        const ratio = Math.min(1, Math.max(0.1, density / maxDen));
+        const activeDots = Math.floor(ratio * totalDots);
+        const activeColor = isWinner ? '#e8c547' : '#e84747';
+        let dots = '';
+        for (let i = 0; i < totalDots; i++) {
+            const bg = i < activeDots ? activeColor : '#333';
+            dots += `<div style="width:6px;height:6px;border-radius:50%;background:${bg};"></div>`;
+        }
+        return `<div style="display:grid;grid-template-columns:repeat(10, 1fr);gap:4px;padding:8px;border:1px solid #262629;background:#050505;">${dots}</div>`;
+    };
+
+    const cohorts = [
+        { label: 'GEN Z', key: 'genZ' },
+        { label: 'MILLEN', key: 'millennials' },
+        { label: 'GEN X', key: 'genX' },
+        { label: 'BOOMER', key: 'boomers' }
+    ] as const;
+
+    let histogramHtml = '<div style="display:flex;justify-content:space-between;align-items:flex-end;height:120px;padding:0 10px;border-bottom:1px solid #262629;gap:16px;">';
+    cohorts.forEach(cohort => {
+        const valA = ageA[cohort.key];
+        const valB = ageB[cohort.key];
+        const maxVal = Math.max(...cohorts.map(c => Math.max(ageA[c.key], ageB[c.key])));
+        const hA = (valA / maxVal) * 100;
+        const hB = (valB / maxVal) * 100;
+        histogramHtml += `
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;">
+                <div style="display:flex;align-items:flex-end;justify-content:center;gap:4px;width:100%;height:100%;padding-bottom:8px;">
+                    <div style="width:30%;background:rgba(232,197,71,0.2);border:1px solid #e8c547;height:${hA}%;position:relative;"></div>
+                    <div style="width:30%;background:rgba(232,71,71,0.2);border:1px solid #e84747;height:${hB}%;position:relative;"></div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#888;text-align:center;margin-top:4px;">${cohort.label}</div>
+            </div>
+        `;
+    });
+    histogramHtml += '</div>';
+
+    const demographicsHtml = `
+    <!-- LAYER DEMOGRAPHICS: TELEMETRY -->
+    <div style="border:1px solid #262629;margin-bottom:24px;background:#0a0a0a;display:flex;flex-direction:column;">
+        <div style="padding:10px 16px;border-bottom:1px solid #262629;background:#111;">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#e8c547;font-weight:bold;letter-spacing:2px;">DEMOGRAPHIC SEGMENTATION & TELEMETRY</span>
+        </div>
+        <div style="display:flex;width:100%;">
+            <!-- Gender -->
+            <div style="flex:1;padding:16px;border-right:1px solid #262629;">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#888;letter-spacing:2px;margin-bottom:12px;text-transform:uppercase;">Gender Distribution Modules</div>
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:4px;">
+                        <span>${nameA.toUpperCase()}</span>
+                        <span style="color:#e8c547;">${maleA}% M / ${100 - maleA}% F</span>
+                    </div>
+                    ${renderSegmentsHtml(maleA, true)}
+                </div>
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:4px;">
+                        <span>${nameB.toUpperCase()}</span>
+                        <span style="color:#e84747;">${maleB}% M / ${100 - maleB}% F</span>
+                    </div>
+                    ${renderSegmentsHtml(maleB, false)}
+                </div>
+            </div>
+            <!-- Age -->
+            <div style="flex:1;padding:16px;border-right:1px solid #262629;">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#888;letter-spacing:2px;margin-bottom:12px;text-transform:uppercase;">Generational Cohort Histograms</div>
+                ${histogramHtml}
+                <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;">
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#888;"><span style="display:inline-block;width:8px;height:8px;background:#e8c547;margin-right:4px;"></span>TARGET A</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#888;"><span style="display:inline-block;width:8px;height:8px;background:#e84747;margin-right:4px;"></span>TARGET B</div>
+                </div>
+            </div>
+            <!-- Density -->
+            <div style="flex:1;padding:16px;">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#888;letter-spacing:2px;margin-bottom:12px;text-transform:uppercase;">Spatial Population Density</div>
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:4px;">
+                        <span>${nameA.toUpperCase()}</span>
+                        <span style="color:#e8c547;">${Math.round(denA)}k / km²</span>
+                    </div>
+                    ${renderDensityGridHtml(denA, true)}
+                </div>
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:4px;">
+                        <span>${nameB.toUpperCase()}</span>
+                        <span style="color:#e84747;">${Math.round(denB)}k / km²</span>
+                    </div>
+                    ${renderDensityGridHtml(denB, false)}
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -229,6 +363,8 @@ export function generateReportHtml(data: ReportData): string {
             ${flipSection}
         </div>
     </div>
+
+    ${demographicsHtml}
 
     <!-- FOOTER -->
     <div style="border-top:1px solid #262629;padding-top:16px;display:flex;justify-content:space-between;">

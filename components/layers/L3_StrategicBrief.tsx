@@ -19,107 +19,107 @@ export function L3StrategicBrief({ locationA, locationB, primaryChoice, business
     const briefData = useMemo(() => {
         const models: Record<string, { thesis: string; advantages: string[]; risks: string[] }> = {
             cafe: {
-                thesis: `${winner.locality_name}'s premium high-street commercial footprint density creates a captive target timeline. The presence of dense local traffic yields an estimated 3.1 customer visits per individual per month, establishing a structural revenue advantage over ${loser.locality_name}'s standard baseline setup.`,
+                thesis: `${winner.locality_name}'s dense commercial footprint ensures a steady target timeline. The high local traffic averages 3.1 visits per person each month, offering a clear revenue advantage over ${loser.locality_name}'s baseline setup.`,
                 advantages: [
-                    `Target discretionary disposable income tracks above ₹70,000 baseline index thresholds.`,
-                    `High-volume passing footfall count optimizations yield active daily conversion scale windows.`,
-                    `Proximate office park clustering provides consistent morning and evening customer traffic loops.`
+                    `Local disposable income is strong, tracking well above the ₹70,000 threshold.`,
+                    `High daily footfall creates excellent opportunities for frequent customer conversion.`,
+                    `Nearby office parks guarantee steady morning and evening commuter traffic.`
                 ],
                 risks: [
-                    `Commercial real estate lease overhead scales significantly above municipal average indices.`,
-                    `Regional competitor counts indicate immediate saturation within immediate 1km walkability rings.`,
-                    `Absence of near-tier commuter transit networks restricts secondary retail attachment draw radius.`
+                    `Commercial lease costs are significantly higher than the city average.`,
+                    `A high number of competitors means the immediate walking area is largely saturated.`,
+                    `The lack of nearby transit hubs limits the ability to draw customers from further away.`
                 ]
             },
             gym: {
-                thesis: `Expansion strategies favor ${winner.locality_name} due to the presence of a scalable, health-conscious residential pool distribution. While rental costs remain fixed, the absolute size of the consumer pool optimizes direct margin projection capture models before competitor saturation spikes acquisition spend.`,
+                thesis: `Expansion favors ${winner.locality_name} due to its large, health-conscious residential base. This broad consumer pool allows for better profit margins before marketing costs increase from local competition.`,
                 advantages: [
-                    `Unsaturated target customer headcount metrics optimize long-term member recruitment pipelines.`,
-                    `Annualized community growth projections imply compounding household footprint generation over a 3-year lease span.`,
-                    `Elevated educational attainment indices correlate with premium lifestyle lifestyle membership spend tolerances.`
+                    `A large, untapped local population makes it easier to recruit new members over time.`,
+                    `Projected community growth means the customer base will expand naturally during a 3-year lease.`,
+                    `Higher local education levels strongly correlate with a willingness to pay for premium memberships.`
                 ],
                 risks: [
-                    `Substantial initial capital expenditure commitments required to anchor localized structural tooling infrastructure.`,
-                    `High sensitivity models encounter compounding operational friction if competitor counts breach target thresholds.`,
-                    `Off-peak hour utility distribution cycles require precise HVAC operational optimization to maintain margin parameters.`
+                    `High upfront capital is required to build out the necessary facility infrastructure.`,
+                    `Profitability will drop sharply if new competitors enter the market and split the customer base.`,
+                    `Utility costs during off-peak hours require careful management to protect profit margins.`
                 ]
             },
             grocery: {
-                thesis: `Modern trade proximity metrics validate ${winner.locality_name} based purely on core demographic headcounts. Grocery formats rely strictly on neighborhood catchment volumes within tight 1.5km radii, making ${winner.locality_name}'s elevated residential concentration an unbeatable competitive advantage.`,
+                thesis: `${winner.locality_name} is the superior choice based purely on local population size. Neighborhood grocery stores rely on the immediate 1.5km radius, making this area's dense residential concentration a major advantage.`,
                 advantages: [
-                    `Absolute regional headcount metrics clear minimum structural thresholds for consistent inventory turnaround velocity.`,
-                    `Baseline daily transit volume indicators guarantee continuous high-frequency checkout basket values.`,
-                    `Favorable asset lease rate models minimize overhead vulnerabilities against compressed product margin frames.`
+                    `The large local population guarantees the minimum sales volume needed for rapid inventory turnover.`,
+                    `Steady daily commuter traffic ensures a high number of everyday purchases.`,
+                    `Favorable lease rates help protect thin product margins from high overhead costs.`
                 ],
                 risks: [
-                    `Low operational margins isolate corporate performance targets against localized wholesale supply variations.`,
-                    `Proximity constraints limit consumer capture horizons strictly to immediate walking routes.`,
-                    `Aggressive neighborhood vendor placement strategies compress early market share consolidation windows.`
+                    `Thin profit margins leave the store vulnerable to sudden changes in wholesale supply costs.`,
+                    `Customer reach is strictly limited to people living or walking within the immediate neighborhood.`,
+                    `Aggressive local competitors could make it difficult to gain early market share.`
                 ]
             },
             pharmacy: {
-                thesis: `${winner.locality_name} presents an optimized landscape for retail pharmacy operations, driven directly by proximate healthcare anchors and targeted demographic aging parameters. This establishes a structural advantage over ${loser.locality_name} for recurring prescription and OTC revenue streams.`,
+                thesis: `${winner.locality_name} is the optimal location for a pharmacy, driven by nearby clinics and an aging local demographic. This provides a clear advantage over ${loser.locality_name} for consistent prescription and over-the-counter sales.`,
                 advantages: [
-                    `Proximity to established healthcare anchors drives continuous, high-intent patient footfall.`,
-                    `Demographic aging parameters indicate a compounded reliance on recurring localized medical supply access.`,
-                    `Favorable high-street visibility maximizes capture of immediate, inelastic consumer health requirements.`
+                    `Proximity to established clinics and hospitals ensures a steady flow of patients needing medication.`,
+                    `An aging local population guarantees a growing, long-term need for healthcare supplies.`,
+                    `Excellent street visibility makes it easy to capture urgent, walk-in health purchases.`
                 ],
                 risks: [
-                    `Localized regulatory compliance friction points may inflate initial operational and licensing timeframes.`,
-                    `High exposure to organized competitor networks operating within immediate radius parameters.`,
-                    `Overhead structures remain sensitive to real estate escalations without corresponding margin relief.`
+                    `Local zoning and compliance regulations could delay the initial store opening.`,
+                    `Established pharmacy chains are already operating in the immediate area.`,
+                    `Rent increases will directly cut into profits unless product margins improve.`
                 ]
             },
             salon: {
-                thesis: `The demographic footprint of ${winner.locality_name} heavily supports premium personal care formatting. High discretionary service indices combined with recurring subscription behaviors secure stable lifetime value models against ${loser.locality_name}'s baseline volatility.`,
+                thesis: `The demographics of ${winner.locality_name} perfectly support a premium salon. High disposable income and a tendency for recurring appointments offer much better revenue stability than ${loser.locality_name}.`,
                 advantages: [
-                    `Target discretionary service indices align perfectly with premium-tier pricing elasticity expectations.`,
-                    `Demographic stability encourages recurring subscription behaviors and long-term client retention loops.`,
-                    `High-density commercial adjacency supports consistent appointment generation via corporate traffic.`
+                    `Higher-income local households are highly positioned to support premium service pricing strategies.`,
+                    `A stable local population encourages regular, repeat appointments and long-term client loyalty.`,
+                    `Nearby office buildings provide a consistent stream of corporate clients booking during the workweek.`
                 ],
                 risks: [
-                    `Talent retention realities create structural operational dependencies on skilled labor market conditions.`,
-                    `Sensitivity to macro-economic contraction impacts discretionary consumer spending velocity directly.`,
-                    `High competitor density demands continuous capital expenditure on interior aesthetics to maintain parity.`
+                    `Success depends heavily on the ability to hire and retain highly skilled staff.`,
+                    `An economic downturn could quickly cause customers to cut back on discretionary spending.`,
+                    `Fierce local competition requires ongoing spending on interior upgrades to keep the salon looking modern.`
                 ]
             },
             qsr: {
-                thesis: `Optimized for high-volume delivery catchments, ${winner.locality_name} offers a superior logistical grid compared to ${loser.locality_name}. Minimal footprint leasing strategies can be aggressively deployed here to maximize aggregator dispatch efficiency.`,
+                thesis: `With its high-density delivery zones, ${winner.locality_name} is far better suited for a quick-service restaurant than ${loser.locality_name}. A smaller storefront can be leased here to focus heavily on high-volume delivery.`,
                 advantages: [
-                    `High-volume delivery catchment zones perfectly intersect with dense residential and corporate populations.`,
-                    `Minimal footprint leasing models drastically compress fixed overhead requirements against revenue projections.`,
-                    `Elevated daily footfall guarantees strong walk-in conversion channels alongside delivery velocity.`
+                    `The area overlaps perfectly with dense residential blocks and busy corporate offices.`,
+                    `Leasing a smaller space keeps fixed costs low, maximizing the profit from each order.`,
+                    `High street footfall provides a solid base of walk-in customers to supplement delivery sales.`
                 ],
                 risks: [
-                    `Aggressive aggregator platform fees mandate massive order volume scaling to protect net profit margins.`,
-                    `Saturation of rival fast-casual operators creates an extreme friction environment for customer footfall patterns.`,
-                    `Real estate leasing escalations can threaten profitability if localized delivery density plateaus.`
+                    `High delivery app fees require a massive volume of orders to maintain overall profitability.`,
+                    `Too many rival fast-food spots creates a tough environment to win over regular customers.`,
+                    `Rising rent could quickly erase profit margins if delivery order volume stops growing.`
                 ]
             },
             coworking: {
-                thesis: `Corporate spillover metrics strongly validate ${winner.locality_name} as an essential flexible workspace hub. Proximity to transit networks and shifting commercial real estate models present a clear advantage over ${loser.locality_name}.`,
+                thesis: `${winner.locality_name} is highly validated as a flexible workspace hub. Its closeness to transit and shifting corporate office needs give it a clear edge over ${loser.locality_name}.`,
                 advantages: [
-                    `Direct proximity to transit hubs guarantees seamless commuter integration for hybrid workforce cohorts.`,
-                    `Corporate spillover metrics provide an immediate pipeline for enterprise overflow and satellite desk leasing.`,
-                    `Strong local educational and innovation indices attract consistent independent contractor tenancy.`
+                    `Being next to transit hubs makes commuting easy for hybrid workers.`,
+                    `Nearby corporate offices provide a ready supply of companies looking to lease overflow desk space.`,
+                    `Strong local universities and tech hubs attract a steady stream of freelancers and startups.`
                 ],
                 risks: [
-                    `Commercial real estate rent volatility directly threatens the core arbitrage model of long-lease setups.`,
-                    `High initial build-out capital expenditure risks stranding assets if corporate demand unexpectedly shifts.`,
-                    `Heavy exposure to broader macroeconomic employment shifts and corporate remote-work policy retractions.`
+                    `Fluctuating commercial rent prices threaten the core business model of subleasing space.`,
+                    `High upfront renovation costs are risky if corporate demand suddenly drops.`,
+                    `The business is highly exposed to economic downturns and companies enforcing return-to-office policies.`
                 ]
             },
             clinic: {
-                thesis: `Multi-generational family densities within ${winner.locality_name} form an ideal capture radius for comprehensive outpatient facilities. High-end diagnostic capex can be efficiently amortized here compared to the fragmented patient base of ${loser.locality_name}.`,
+                thesis: `The high density of multi-generational families in ${winner.locality_name} creates the ideal patient base for an outpatient clinic. Expensive medical equipment can be paid off much faster here than in ${loser.locality_name}.`,
                 advantages: [
-                    `Multi-generational family densities guarantee continuous, diverse medical service utilization rates.`,
-                    `Optimal median income metrics support the introduction of premium, out-of-pocket specialized care tracks.`,
-                    `Favorable proximity to educational institutions correlates strongly with pediatric and family care demand.`
+                    `Large family households guarantee a steady and diverse need for medical services.`,
+                    `Strong local incomes allow the clinic to successfully introduce premium, out-of-pocket specialized care.`,
+                    `Being close to local schools strongly boosts the demand for pediatric and family medicine.`
                 ],
                 risks: [
-                    `High-end diagnostic capex requirements present significant barrier-to-entry liquidity hurdles.`,
-                    `Complex zoning constraint intervals may restrict facility expansion and parking infrastructure compliance.`,
-                    `Recruitment and retention of specialized medical talent remains fiercely competitive within this specific quadrant.`
+                    `The high cost of purchasing specialized medical equipment is a major financial hurdle.`,
+                    `Strict local zoning laws could restrict future expansions or limit patient parking.`,
+                    `Hiring and keeping specialized doctors and nurses is extremely competitive in this area.`
                 ]
             }
         };

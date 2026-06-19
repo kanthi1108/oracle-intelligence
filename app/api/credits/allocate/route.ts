@@ -4,7 +4,7 @@
 // Requires admin role verification
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { dispatchLifecycleEvent } from '@/lib/telegram';
 
 interface AllocateRequest {
@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const { data: adminProfile } = await supabase
+        const serviceSupabase = createServiceRoleClient();
+
+        const { data: adminProfile } = await serviceSupabase
             .from('users')
             .select('id, role')
             .eq('auth_id', user.id)
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Read current balance
-        const { data: balanceRow } = await supabase
+        const { data: balanceRow } = await serviceSupabase
             .from('current_credit_balances')
             .select('current_balance')
             .eq('user_id', user_id)
@@ -81,7 +83,7 @@ export async function POST(request: NextRequest) {
         const idempotencyKey = `admin_${adminProfile.id}_${user_id}_${Date.now()}`;
 
         // Append transaction
-        const { error: insertError } = await supabase
+        const { error: insertError } = await serviceSupabase
             .from('credits')
             .insert({
                 user_id,
@@ -111,7 +113,7 @@ export async function POST(request: NextRequest) {
         // ── ADMIN AUDIT LOGGING — PRD §6.2 ──
         const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '127.0.0.1';
         
-        const { error: auditError } = await supabase
+        const { error: auditError } = await serviceSupabase
             .from('admin_audit_log')
             .insert({
                 admin_user_id: adminProfile.id,

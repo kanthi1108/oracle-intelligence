@@ -42,9 +42,20 @@ export async function sendTelegramNotification(
 ): Promise<{ success: boolean; error?: string }> {
     const token = process.env.TELEGRAM_BOT_TOKEN;
 
-    if (!token) {
-        console.warn('[TELEGRAM] TELEGRAM_BOT_TOKEN not configured — skipping notification');
-        return { success: false, error: 'Bot token not configured' };
+    if (!token || token === 'your-bot-token-from-botfather') {
+        console.warn('[TELEGRAM] TELEGRAM_BOT_TOKEN missing or generic. Rerouting to fallback database log.');
+        
+        try {
+            const supabase = createServiceRoleClient();
+            await supabase.from('telegram_fallback_logs').insert({
+                chat_id: chatId,
+                message: message
+            });
+            return { success: true };
+        } catch (dbError) {
+            console.error('[TELEGRAM] Fallback logging failed:', dbError);
+            return { success: false, error: 'Fallback logging failed' };
+        }
     }
 
     try {

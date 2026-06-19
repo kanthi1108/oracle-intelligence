@@ -3,7 +3,7 @@
 // Server-side JWT inspection: rejects non-admin users with redirect to /
 
 import { redirect } from 'next/navigation';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server';
 
 interface AdminUser {
     id: string;
@@ -27,7 +27,8 @@ export default async function AdminLayout({
     }
 
     // Step 2: Verify admin role from users table
-    const { data: profile } = await supabase
+    const serviceSupabase = createServiceRoleClient();
+    const { data: profile } = await serviceSupabase
         .from('users')
         .select('id, auth_id, role, full_name')
         .eq('auth_id', user.id)
