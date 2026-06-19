@@ -3,7 +3,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 
-export async function POST(request: Request) {
+export async function POST() {
     try {
         const cookieStore = cookies();
         const supabase = createServerClient(
