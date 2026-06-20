@@ -233,6 +233,19 @@ export default function AdminDashboard() {
         }
     }, []);
 
+    const handleDeleteUser = async (userId: string) => {
+        try {
+            const res = await fetch(`/api/admin/users?id=${userId}`, { method: 'DELETE' });
+            if (!res.ok) {
+                console.error('Failed to delete user');
+            } else {
+                fetchData(); // Refresh grid instantly
+            }
+        } catch (error) {
+            console.error('Deletion error:', error);
+        }
+    };
+
     useEffect(() => {
         const load = async () => {
             setLoading(true);
@@ -295,20 +308,20 @@ export default function AdminDashboard() {
     // ── RENDER ───────────────────────────────────────────────────
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6">
             
             {/* Executive Summary Stats */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                 <div className="bg-[#111111] border border-oracle-border p-4 flex flex-col justify-center items-center">
-                    <div className="text-[10px] font-mono text-oracle-textSecondary uppercase tracking-widest mb-1 text-center">Total Corporate Client Portals Active</div>
+                    <div className="text-[10px] font-mono text-oracle-textSecondary uppercase tracking-widest mb-1 text-center">Total Active Users</div>
                     <div className="text-2xl font-mono text-oracle-textPrimary font-bold">{users.length}</div>
                 </div>
                 <div className="bg-[#111111] border border-oracle-border p-4 flex flex-col justify-center items-center">
-                    <div className="text-[10px] font-mono text-oracle-textSecondary uppercase tracking-widest mb-1 text-center">Gross Geospatial Simulations Calculated</div>
+                    <div className="text-[10px] font-mono text-oracle-textSecondary uppercase tracking-widest mb-1 text-center">Total Evaluations Completed</div>
                     <div className="text-2xl font-mono text-oracle-accent font-bold">{reports.length}</div>
                 </div>
                 <div className="bg-[#111111] border border-oracle-border p-4 flex flex-col justify-center items-center">
-                    <div className="text-[10px] font-mono text-oracle-textSecondary uppercase tracking-widest mb-1 text-center">Total Computational Allocation Token Pool</div>
+                    <div className="text-[10px] font-mono text-oracle-textSecondary uppercase tracking-widest mb-1 text-center">Total Allocated Credits</div>
                     <div className="text-2xl font-mono text-oracle-danger font-bold">
                         {users.reduce((acc, u) => acc + (u.current_balance || 0), 0)}
                     </div>
@@ -425,17 +438,28 @@ export default function AdminDashboard() {
                                         {formatDate(user.created_at)}
                                     </td>
                                     <td className="py-2 px-4 text-center">
-                                        <button
-                                            onClick={() => setCreditModal({
-                                                open: true,
-                                                userId: user.id,
-                                                userName: user.full_name ?? user.email ?? '—',
-                                                currentBalance: user.current_balance ?? 0,
-                                            })}
-                                            className="text-[10px] font-mono text-oracle-accent border border-oracle-accent px-2 py-0.5 hover:bg-oracle-accent hover:text-oracle-bg transition-colors tracking-wider"
-                                        >
-                                            CREDITS
-                                        </button>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => setCreditModal({
+                                                    open: true,
+                                                    userId: user.id,
+                                                    userName: user.full_name ?? user.email ?? '—',
+                                                    currentBalance: user.current_balance ?? 0,
+                                                })}
+                                                className="text-[10px] font-mono text-oracle-accent border border-oracle-accent px-2 py-0.5 hover:bg-oracle-accent hover:text-oracle-bg transition-colors tracking-wider"
+                                            >
+                                                CREDITS
+                                            </button>
+                                            
+                                            {user.role !== 'admin' && (
+                                                <button
+                                                    onClick={() => handleDeleteUser(user.id)}
+                                                    className="text-[10px] font-mono text-[#e84747] border border-[#e84747] px-2 py-0.5 hover:bg-[#e84747] hover:text-oracle-bg transition-colors tracking-wider"
+                                                >
+                                                    DELETE
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

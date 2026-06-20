@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { ORACLE_WEIGHTS } from '@/lib/oracle-engine/weights';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 
@@ -35,11 +37,35 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
+        const cookieStore = cookies();
+        const supabaseAuth = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                cookies: {
+                    get(name: string) { return cookieStore.get(name)?.value; },
+                },
+            }
+        );
+
+        const { data: { session } } = await supabaseAuth.auth.getSession();
+        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const serviceSupabase = createServiceRoleClient();
+        const { data: profile } = await serviceSupabase
+            .from('users')
+            .select('role')
+            .eq('auth_id', session.user.id)
+            .single();
+
+        if (!profile || profile.role !== 'admin') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
         const newWeights = await req.json();
-        const supabase = createServiceRoleClient();
         
         // Upsert the global weights
-        const { error } = await supabase
+        const { error } = await serviceSupabase
             .from('platform_weights')
             .upsert(
                 { business_type: 'global', weights_json: newWeights, updated_at: new Date().toISOString() },

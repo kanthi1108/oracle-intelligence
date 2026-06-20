@@ -13,7 +13,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 async function run() {
     // 1. Sign in as admin to get JWT
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: 'admin@oracle.ai',
+        email: 'amehta@enterprise.com',
         password: 'oracle2026'
     });
     

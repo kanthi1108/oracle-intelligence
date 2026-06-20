@@ -136,7 +136,7 @@ export function L3StrategicBrief({ locationA, locationB, primaryChoice, business
             {/* TOP DECISION DRIVERS HEADER CARD */}
             <div className="p-5 border-b border-oracle-border bg-black/40">
                 <div className="text-[10px] font-mono text-oracle-accent font-bold uppercase tracking-wider mb-3">
-                    TOP DECISION DRIVERS // STRATEGIC EDGE
+                    TOP DECISION DRIVERS — KEY DECISION FACTORS
                 </div>
                 <div className="flex gap-6">
                     {topDrivers.map((driver, idx) => (
@@ -168,7 +168,7 @@ export function L3StrategicBrief({ locationA, locationB, primaryChoice, business
                     RECOMMENDED ACTION
                 </div>
                 <p className="text-xs text-oracle-accent font-bold leading-relaxed px-1 font-sans mt-auto mb-auto">
-                    Proceed with immediate real estate acquisition and lease negotiation within the {winner.locality_name.toUpperCase()} target radius.
+                    Proceed with immediate real estate acquisition and lease negotiation within the {winner.locality_name.toUpperCase()} service area.
                 </p>
             </div>
 

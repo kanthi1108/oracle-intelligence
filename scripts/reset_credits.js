@@ -11,7 +11,7 @@ async function run() {
     console.log("Starting credit reset...");
     
     // Member's email
-    const email = 'member@oracle.ai';
+    const email = 'rkrishna@enterprise.com';
 
     // 1. Get internal user ID
     const { data: userRow, error: userError } = await serviceSupabase

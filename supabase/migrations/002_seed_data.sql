@@ -6,7 +6,7 @@
 -- ============================================================
 
 -- ============================================================
--- SEED: users (4 demo rows for hackathon judges)
+-- SEED: users
 -- ============================================================
 
 INSERT INTO public.users
@@ -18,7 +18,7 @@ VALUES
   (
     '00000000-0000-0000-0000-000000000001',
     '00000000-aaaa-0000-0000-000000000001',
-    'admin@oracle-platform.in',
+    'amehta@enterprise.com',
     'Arjun Mehta',
     'admin',
     'enterprise',
@@ -29,26 +29,11 @@ VALUES
     TRUE,
     'Hyderabad'
   ),
-  -- Row 2: Analyst Tier Demo User
-  (
-    '00000000-0000-0000-0000-000000000002',
-    '00000000-aaaa-0000-0000-000000000002',
-    'judge.demo@summersaas.in',
-    'Priya Venkataraman',
-    'analyst',
-    'analyst',
-    'active',
-    '2026-06-01 00:00:00+05:30',
-    '2026-07-01 00:00:00+05:30',
-    8,
-    TRUE,
-    'Bengaluru'
-  ),
   -- Row 3: Free Tier User (Spark)
   (
     '00000000-0000-0000-0000-000000000003',
     '00000000-aaaa-0000-0000-000000000003',
-    'founder.demo@startup.in',
+    'rkrishna@enterprise.com',
     'Rahul Krishnaswamy',
     'member',
     'spark',
@@ -58,21 +43,6 @@ VALUES
     2,
     TRUE,
     'Pune'
-  ),
-  -- Row 4: Enterprise Tier Demo User
-  (
-    '00000000-0000-0000-0000-000000000004',
-    '00000000-aaaa-0000-0000-000000000004',
-    'enterprise.demo@dmart-franchise.in',
-    'Sunita Agarwal',
-    'enterprise',
-    'enterprise',
-    'active',
-    '2026-04-01 00:00:00+05:30',
-    '2027-04-01 00:00:00+05:30',
-    23,
-    TRUE,
-    'Hyderabad'
   );
 
 -- ============================================================
@@ -305,20 +275,8 @@ VALUES
   (
     '00000000-0000-0000-0000-000000000001',
     'promotional_grant', 'credit', 9999, 9999,
-    'Admin account — enterprise unlimited credit grant (hackathon seeded)',
+    'Admin account — enterprise unlimited credit grant (initial seed)',
     'seed_admin_001_initial'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000002',
-    'subscription_renewal', 'credit', 15, 15,
-    'Analyst tier — June 2026 monthly credit allocation',
-    'seed_analyst_002_jun2026'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000002',
-    'report_consumption', 'debit', 7, 8,
-    'Batch debit — 7 reports generated in June 2026 cycle',
-    'seed_analyst_002_debit7'
   ),
   (
     '00000000-0000-0000-0000-000000000003',
@@ -331,23 +289,11 @@ VALUES
     'report_consumption', 'debit', 2, 1,
     'Batch debit — 2 reports generated',
     'seed_spark_003_debit2'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000004',
-    'promotional_grant', 'credit', 9999, 9999,
-    'Enterprise tier — unlimited credit allocation (annual subscriber)',
-    'seed_enterprise_004_initial'
-  ),
-  (
-    '00000000-0000-0000-0000-000000000004',
-    'report_consumption', 'debit', 23, 9976,
-    'Batch debit — 23 reports generated to date',
-    'seed_enterprise_004_debit23'
   );
 
 -- ============================================================
 -- SEED COMPLETE
--- Users: 4 (admin, analyst, spark, enterprise)
+-- Users: 2 (admin, spark)
 -- Locations: 40 (Hyderabad 20, Bengaluru 10, Pune 10)
--- Credit Entries: 7 (matching user report_generated counts)
+-- Credit Entries: 3
 -- ============================================================

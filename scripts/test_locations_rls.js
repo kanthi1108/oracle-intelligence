@@ -12,7 +12,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 async function run() {
     const { data: authData } = await supabase.auth.signInWithPassword({
-        email: 'admin@oracle.ai',
+        email: 'amehta@enterprise.com',
         password: 'oracle2026'
     });
     

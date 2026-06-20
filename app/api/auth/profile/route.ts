@@ -16,8 +16,8 @@ export async function GET() {
             }
         );
 
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         // Bypass RLS to avoid infinite recursion
         const serviceSupabase = createServiceRoleClient();
@@ -25,7 +25,7 @@ export async function GET() {
         const { data: profile } = await serviceSupabase
             .from('users')
             .select('id, role, subscription_tier')
-            .eq('auth_id', session.user.id)
+            .eq('auth_id', user.id)
             .single();
 
         let balance = 0;

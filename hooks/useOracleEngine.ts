@@ -94,8 +94,8 @@ function generateTimestamp(offsetMs: number): string {
 
 export function useOracleEngine() {
     const [activeProfile, setActiveProfile] = useState<BusinessType>('cafe');
-    const [locationAId, setLocationAId] = useState<string>('1'); // Default: Madhapur
-    const [locationBId, setLocationBId] = useState<string>('2'); // Default: Gachibowli
+    const [locationAId, setLocationAId] = useState<string>(''); // Empty by default
+    const [locationBId, setLocationBId] = useState<string>(''); // Empty by default
 
     const setLocationASafe = (id: string) => {
         if (id === locationBId) {
@@ -115,6 +115,23 @@ export function useOracleEngine() {
     const [competitorModifierA, setCompetitorModifierA] = useState<number>(0);
     const [rentModifierA, setRentModifierA] = useState<number>(0);
     const [incomeModifierA, setIncomeModifierA] = useState<number>(0);
+
+    const [committedState, setCommittedState] = useState({
+        activeProfile: 'cafe' as BusinessType,
+        locationAId: '',
+        locationBId: '',
+        competitorModifierA: 0,
+        rentModifierA: 0,
+        incomeModifierA: 0,
+    });
+
+    const isStale = 
+        activeProfile !== committedState.activeProfile ||
+        locationAId !== committedState.locationAId ||
+        locationBId !== committedState.locationBId ||
+        competitorModifierA !== committedState.competitorModifierA ||
+        rentModifierA !== committedState.rentModifierA ||
+        incomeModifierA !== committedState.incomeModifierA;
 
     const [creditsExhausted, setCreditsExhausted] = useState<boolean>(false);
     const [creditBalance, setCreditBalance] = useState<number>(150); // Live reactive balance
@@ -139,6 +156,11 @@ export function useOracleEngine() {
                         if (data.length > 1) {
                             setLocationBId(data[1].id);
                         }
+                        setCommittedState(prev => ({
+                            ...prev,
+                            locationAId: data[0].id,
+                            locationBId: data.length > 1 ? data[1].id : prev.locationBId,
+                        }));
                     }
                 } else {
                     console.error('[ORACLE] Failed to fetch locations, status:', res.status);
@@ -162,6 +184,25 @@ export function useOracleEngine() {
 
         fetchLocations();
         fetchWeights();
+
+        const supabase = createClient();
+        const channel = supabase
+            .channel('realtime:locations')
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'locations' },
+                (payload) => {
+                    const updatedRow = payload.new as LocationData;
+                    setLocations((prev) => 
+                        prev.map((loc) => (loc.id === updatedRow.id ? updatedRow : loc))
+                    );
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     // Phase 5: Core Oracle Weight Extraction
@@ -172,22 +213,26 @@ export function useOracleEngine() {
     // Dynamic simulation payload calculations
     const processedLocations = useMemo(() => {
         return locations.map((loc) => {
-            if (loc.id === locationAId) {
+            if (loc.id === committedState.locationAId) {
                 return {
                     ...loc,
-                    competitor_count: Math.max(0, loc.competitor_count + competitorModifierA),
-                    avg_rental_sqft_inr: Math.max(1, loc.avg_rental_sqft_inr + rentModifierA),
-                    median_income_inr: Math.max(1, loc.median_income_inr + incomeModifierA),
+                    competitor_count: Math.max(0, loc.competitor_count + committedState.competitorModifierA),
+                    avg_rental_sqft_inr: Math.max(1, loc.avg_rental_sqft_inr + committedState.rentModifierA),
+                    median_income_inr: Math.max(1, loc.median_income_inr + committedState.incomeModifierA),
                 };
             }
             return loc;
         });
-    }, [locations, locationAId, competitorModifierA, rentModifierA, incomeModifierA]);
+    }, [locations, committedState]);
 
     const evaluation = useMemo(() => {
-        const locA = processedLocations.find(l => l.id === locationAId) || processedLocations[0];
-        const locB = processedLocations.find(l => l.id === locationBId) || processedLocations[1];
-        const weights = dynamicWeights[activeProfile];
+        if (!committedState.locationAId || !committedState.locationBId) return null;
+
+        const locA = processedLocations.find(l => l.id === committedState.locationAId);
+        const locB = processedLocations.find(l => l.id === committedState.locationBId);
+
+        if (!locA || !locB) return null;
+        const weights = dynamicWeights[committedState.activeProfile];
 
         // All MetricKey fields across both locations for normalisation bounds
         const allMetricKeys = Object.keys(weights) as MetricKey[];
@@ -377,7 +422,7 @@ export function useOracleEngine() {
         causalityEvents.push({
             timestamp: ts(0),
             type: 'REPORT_SAVED',
-            message: `Execution finalized. Session intelligence and logic parameters archived.`,
+            message: `Analysis complete. Session parameters archived.`,
             color: 'gray',
         });
 
@@ -395,36 +440,47 @@ export function useOracleEngine() {
             flipVariable,
             causalityEvents,
         };
-    }, [processedLocations, activeProfile, locationAId, locationBId, dynamicWeights]);
+    }, [processedLocations, committedState, dynamicWeights]);
+
+    const evaluationRef = useRef(evaluation);
+    useEffect(() => {
+        evaluationRef.current = evaluation;
+    }, [evaluation]);
 
     // Phase 9: Report Status Tracking Pipeline
     const runPipeline = async (onComplete?: () => void) => {
         if (!roleResolved) return; // Gate: wait for page.tsx to resolve the role
-        if (creditsExhausted && userRole !== 'admin') return; // Gate: already exhausted
+        if (creditsExhausted) return; // Gate: already exhausted
 
         setReportStatus('Requested');
         
+        // Sync committed state FIRST so evaluation can compute during the loading delay
+        setCommittedState({
+            activeProfile,
+            locationAId,
+            locationBId,
+            competitorModifierA,
+            rentModifierA,
+            incomeModifierA,
+        });
+
         // Short artificial pause to show the transition
         await new Promise(r => setTimeout(r, 100));
         setReportStatus('Processing');
 
-        // Consume credit — admin is fully bypassed
+        // Consume credit
         try {
-            if (userRole === 'admin') {
-                // Admin: skip credit consumption entirely
-            } else {
-                const res = await fetch('/api/credits/consume', { method: 'POST' });
-                const data = await res.json();
-                if (data.exhausted) {
-                    setCreditsExhausted(true);
-                    setCreditBalance(0);
-                    setReportStatus('Ready');
-                    return;
-                }
-                // Update live balance from server response
-                if (typeof data.balance === 'number') {
-                    setCreditBalance(data.balance);
-                }
+            const res = await fetch('/api/credits/consume', { method: 'POST' });
+            const data = await res.json();
+            if (data.exhausted) {
+                setCreditsExhausted(true);
+                setCreditBalance(0);
+                setReportStatus('Ready');
+                return;
+            }
+            // Update live balance from server response
+            if (typeof data.balance === 'number') {
+                setCreditBalance(data.balance);
             }
         } catch (err) {
             console.error('[ORACLE] Credit consumption failed', err);
@@ -435,6 +491,12 @@ export function useOracleEngine() {
         
         setReportStatus('Ready');
 
+        const latestEval = evaluationRef.current;
+        if (!latestEval) {
+            if (onComplete) onComplete();
+            return;
+        }
+
         // Write report history
         try {
             await fetch('/api/reports/save', {
@@ -444,21 +506,22 @@ export function useOracleEngine() {
                     business_type: activeProfile,
                     location_a_id: locationAId,
                     location_b_id: locationBId,
-                    winner_location_id: evaluation.primaryChoice === evaluation.locA.locality_name ? locationAId : locationBId,
-                    verdict_confidence: evaluation.confidencePct,
-                    verdict_is_decisive: evaluation.isDecisive,
-                    score_location_a: evaluation.scoreA,
-                    score_location_b: evaluation.scoreB,
-                    primary_delta_pct: evaluation.varianceMatrix[0]?.deltaPct || 0,
+                    winner_location_id: latestEval.primaryChoice === latestEval.locA.locality_name ? locationAId : locationBId,
+                    verdict_confidence: latestEval.confidencePct,
+                    verdict_is_decisive: latestEval.isDecisive,
+                    score_location_a: latestEval.scoreA,
+                    score_location_b: latestEval.scoreB,
+                    primary_delta_pct: latestEval.varianceMatrix[0]?.deltaPct || 0,
                 })
             });
+
             if (onComplete) onComplete();
         } catch (err) {
             console.error('[ORACLE] Failed to save report history', err);
         }
 
         // Fire Telegram webhook if pivot occurred
-        const currentChoice = evaluation.primaryChoice;
+        const currentChoice = latestEval.primaryChoice;
         if (prevChoiceRef.current && prevChoiceRef.current !== currentChoice && currentChoice) {
             fetch('/api/evaluation/notify', {
                 method: 'POST',
@@ -466,10 +529,10 @@ export function useOracleEngine() {
                 body: JSON.stringify({
                     context: {
                         BUSINESS_TYPE: activeProfile.toUpperCase(),
-                        LOC_A: evaluation.locA.locality_name,
-                        LOC_B: evaluation.locB.locality_name,
+                        LOC_A: latestEval.locA.locality_name,
+                        LOC_B: latestEval.locB.locality_name,
                         WINNER: currentChoice,
-                        CONFIDENCE: evaluation.confidencePct,
+                        CONFIDENCE: latestEval.confidencePct,
                     }
                 })
             }).catch(console.error);
@@ -492,7 +555,7 @@ export function useOracleEngine() {
         setIncomeModifierA,
         evaluation,
         allLocations: locations,
-        creditsExhausted: userRole === 'admin' ? false : creditsExhausted,
+        creditsExhausted,
         setCreditsExhausted,
         creditBalance,
         setCreditBalance,
@@ -500,6 +563,8 @@ export function useOracleEngine() {
         userRole,
         setUserRole,
         setRoleResolved,
-        runPipeline
+        runPipeline,
+        isStale,
+        committedState
     };
 }

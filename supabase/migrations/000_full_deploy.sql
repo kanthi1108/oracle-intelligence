@@ -378,7 +378,7 @@ INSERT INTO public.credits
   (user_id, transaction_type, direction, amount, balance_after, description, idempotency_key)
 VALUES
   ('00000000-0000-0000-0000-000000000001','promotional_grant','credit',9999,9999,
-   'Admin account — enterprise unlimited credit grant (hackathon seeded)','seed_admin_001_initial'),
+   'Admin account — enterprise unlimited credit grant (initial seed)','seed_admin_001_initial'),
   ('00000000-0000-0000-0000-000000000002','subscription_renewal','credit',15,15,
    'Analyst tier — June 2026 monthly credit allocation','seed_analyst_002_jun2026'),
   ('00000000-0000-0000-0000-000000000002','report_consumption','debit',7,8,

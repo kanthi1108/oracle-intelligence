@@ -98,7 +98,7 @@ export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ location
         <div className="w-full bg-oracle-panel border border-oracle-border flex flex-col select-none mt-6">
             <div className="p-4 border-b border-oracle-border bg-black/40">
                 <div className="text-[10px] font-mono text-oracle-accent font-bold uppercase tracking-wider">
-                    DEMOGRAPHIC SEGMENTATION & TELEMETRY
+                    DEMOGRAPHIC ANALYSIS
                 </div>
             </div>
 

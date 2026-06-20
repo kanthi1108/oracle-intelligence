@@ -19,12 +19,18 @@ export async function GET() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        // Ensure user is an admin by email to be safe
-        if (session.user.email !== 'admin@oracle.ai' && session.user.email !== 'admin@oracle-platform.in') {
+        const serviceSupabase = createServiceRoleClient();
+
+        // Ensure user is an admin by verifying role in the database
+        const { data: profile } = await serviceSupabase
+            .from('users')
+            .select('role')
+            .eq('auth_id', session.user.id)
+            .single();
+
+        if (!profile || profile.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
-
-        const serviceSupabase = createServiceRoleClient();
 
         // 1. Fetch Users & Balances
         const { data: usersData } = await serviceSupabase

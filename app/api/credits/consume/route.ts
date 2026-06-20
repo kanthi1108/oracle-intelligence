@@ -28,13 +28,13 @@ export async function POST() {
             }
         );
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { user } } = await supabase.auth.getUser();
         
-        if (!session) {
+        if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const authId = session.user.id;
+        const authId = user.id;
 
         const serviceSupabase = createServiceRoleClient();
 
@@ -45,10 +45,6 @@ export async function POST() {
             .eq('auth_id', authId)
             .single();
 
-        // Admin bypass — no credit mutation, immediate success
-        if (userRow?.role === 'admin') {
-            return NextResponse.json({ success: true, balance: Infinity, bypass: true });
-        }
 
         // If no user row found, credits cannot be resolved
         if (!userRow) {

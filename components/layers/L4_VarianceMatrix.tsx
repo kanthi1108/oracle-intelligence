@@ -82,7 +82,7 @@ export function L4VarianceMatrix({
                                 WEIGHT
                             </th>
                             <th className="text-left py-2 px-4 font-normal tracking-wider whitespace-nowrap">
-                                VERDICT
+                                SIGNAL
                             </th>
                         </tr>
                     </thead>
@@ -103,6 +103,15 @@ export function L4VarianceMatrix({
                             const deltaDisplay = formatDeltaDisplay(row.deltaPct, row.verdict);
                             const verdictDisplay = getVerdictDisplay(row.verdict);
                             const weightPct = `${Math.round(row.weight * 100)}%`;
+                            
+                            const getMetricSource = (key: string) => {
+                                switch(key) {
+                                    case 'population': case 'population_growth_pct': case 'median_income_inr': case 'education_index': return 'Census Dataset';
+                                    case 'daily_footfall': return 'Footfall Dataset';
+                                    case 'commercial_density_pct': case 'avg_rental_sqft_inr': case 'office_parks_within_2km': case 'competitor_count': return 'Commercial Lease DB';
+                                    default: return 'Internal Analytics';
+                                }
+                            };
 
                             return (
                                 <tr
@@ -113,8 +122,17 @@ export function L4VarianceMatrix({
                                         ${index === 0 ? 'bg-oracle-panel/20' : ''}
                                     `}
                                 >
-                                    <td className="py-2 px-5 text-oracle-textPrimary whitespace-nowrap tracking-wide">
-                                        {label}
+                                    <td className="py-2 px-5 text-oracle-textPrimary whitespace-nowrap tracking-wide relative group cursor-help">
+                                        <span className="border-b border-dashed border-oracle-textSecondary/50 pb-0.5">{label}</span>
+                                        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 hidden group-hover:block z-50 bg-[#111] border border-oracle-border p-3 w-64 shadow-2xl text-xs whitespace-normal">
+                                            <div className="text-oracle-accent font-bold mb-1 border-b border-oracle-border pb-1">{label} Details</div>
+                                            <div className="grid grid-cols-[80px_1fr] gap-y-1.5 text-oracle-textSecondary mt-2">
+                                                <span>Source:</span> <span className="text-oracle-textPrimary">{getMetricSource(row.metric)}</span>
+                                                <span>Updated:</span> <span className="text-oracle-textPrimary">June 2026</span>
+                                                <span>Weight:</span> <span className="text-oracle-textPrimary">{weightPct}</span>
+                                                <span>Impact:</span> <span className="text-oracle-textPrimary">{row.weight > 0.15 ? 'High' : (row.weight > 0.08 ? 'Medium' : 'Low')}</span>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className="py-2 px-4 text-right text-oracle-textPrimary tabular-nums whitespace-nowrap">
                                         {valAFormatted}

@@ -1,140 +1,76 @@
 // components/layers/L5_CausalityFeed.tsx
-// ORACLE Layer 5: Causality Event Feed — PRD §4.3
-// Terminal-style command-line changelog · JetBrains Mono 12px
-// Hard edges · #050505 background · #00ff41 terminal green
-
 import React from 'react';
-import { CausalityEvent, FlipVariableResult } from '@/hooks/useOracleEngine';
+import { CausalityEvent, FlipVariableResult, VarianceRow } from '@/hooks/useOracleEngine';
 import { METRIC_LABELS } from '@/lib/oracle-engine/weights';
 
 interface L5CausalityFeedProps {
-    causalityEvents: CausalityEvent[];
-    flipVariable: FlipVariableResult | null;
-    primaryChoice: string;
+    causalityEvents?: CausalityEvent[];
+    flipVariable?: FlipVariableResult | null;
+    primaryChoice?: string;
+    varianceMatrix?: VarianceRow[];
 }
-
-// Map event color tokens to actual CSS color values
-function getColorClass(color: CausalityEvent['color']): string {
-    switch (color) {
-        case 'green':  return 'text-[#00ff41]';
-        case 'yellow': return 'text-[#e8c547]';
-        case 'red':    return 'text-[#e84747]';
-        case 'gray':   return 'text-[#888888]';
-    }
-}
-
 
 export function L5CausalityFeed({
-    causalityEvents,
-    flipVariable,
-    primaryChoice,
+    varianceMatrix = [],
 }: L5CausalityFeedProps) {
+    // Filter to only impactful drivers (matching recommendation logic)
+    const keyDrivers = varianceMatrix
+        .filter(row => row.verdict === 'FAVOURS' || row.verdict === 'RISK')
+        .slice(0, 4);
+
     return (
-        <div
-            className="w-full select-none"
-            style={{
-                background: '#050505',
-                border: '1px solid #1f1f1f',
-                borderRadius: 0,
-            }}
-        >
-            {/* Section Header — Signal Yellow · PRD §4.3 */}
-            <div
-                className="px-4 py-2.5"
-                style={{ borderBottom: '1px solid #1f1f1f' }}
-            >
-                <span
-                    className="font-mono text-xs tracking-wider font-bold"
-                    style={{ color: '#e8c547' }}
-                >
-                    ── CAUSALITY EVENT LOG ────────────────────────────────────────────────
-                </span>
-            </div>
-
-            {/* Terminal Viewport */}
-            <div className="px-4 py-3 overflow-x-auto">
-                <div className="space-y-0">
-                    {causalityEvents.map((event, index) => {
-                        const colorClass = getColorClass(event.color);
-
-                        // Continuation lines (FLIP_ANALYSIS second line, FLAG detail)
-                        // get indented without a timestamp bracket
-                        const isContinuation =
-                            index > 0 &&
-                            causalityEvents[index - 1].type === event.type &&
-                            event.type === 'FLIP_ANALYSIS' &&
-                            event.message.startsWith('ASSESSMENT');
-
-                        if (isContinuation) {
-                            return (
-                                <div
-                                    key={index}
-                                    className="font-mono leading-relaxed whitespace-nowrap"
-                                    style={{ fontSize: '12px' }}
-                                >
-                                    <span className="text-[#888888]">
-                                        {'                                       '}
-                                    </span>
-                                    <span className={colorClass}>
-                                        {event.message}
-                                    </span>
-                                </div>
-                            );
-                        }
-
-                        return (
-                            <div
-                                key={index}
-                                className="font-mono leading-relaxed whitespace-nowrap"
-                                style={{ fontSize: '12px' }}
-                            >
-                                {/* Timestamp Bracket */}
-                                <span className="text-[#888888]" suppressHydrationWarning>
-                                    [{event.timestamp}]
-                                </span>
-                                {' '}
-                                {/* Event Message Payload */}
-                                <span className={colorClass}>
-                                    {event.message}
-                                </span>
-                            </div>
-                        );
-                    })}
+        <div className="w-full bg-oracle-panel border border-oracle-border p-6 font-mono text-oracle-textPrimary select-none transition-all duration-300">
+            <div className="flex flex-col space-y-6">
+                
+                <div className="border-b border-oracle-border pb-4">
+                    <h3 className="text-sm font-bold tracking-widest text-oracle-textPrimary uppercase">Analysis Methodology</h3>
+                    <div className="text-xs text-oracle-textSecondary mt-1">Data-driven scoring and metric compilation</div>
                 </div>
-            </div>
 
-            {/* Terminal Footer — Flip Variable Summary */}
-            <div
-                className="px-4 py-3 font-mono"
-                style={{
-                    fontSize: '12px',
-                    borderTop: '1px solid #1f1f1f',
-                }}
-            >
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[#888888] font-bold tracking-wider">
-                        DECISION RESILIENCE
-                    </span>
-                    {flipVariable ? (
-                        <span className="text-[#cccccc] leading-relaxed">
-                            {primaryChoice}&apos;s {METRIC_LABELS[flipVariable.variable]?.toLowerCase() || 'core metric'} advantage would need to shift by {flipVariable.requiredSwingPct}% before the active recommendation changes. Recommendation is structurally verified as {flipVariable.isStable ? 'highly resilient' : 'vulnerable'}.
-                        </span>
-                    ) : (
-                        <span className="text-[#00ff41] leading-relaxed">
-                            No single operational vulnerability detected. The recommendation is distributed across multiple structural pillars and is highly resilient.
-                        </span>
-                    )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Data Sources Considered */}
+                    <div>
+                        <div className="text-xs text-oracle-textSecondary uppercase tracking-widest mb-3">Data Sources Considered</div>
+                        <ul className="space-y-2">
+                            <li className="text-sm flex items-start gap-2">
+                                <span className="text-oracle-textSecondary mt-0.5">•</span>
+                                <span>Demographic Segmentation</span>
+                            </li>
+                            <li className="text-sm flex items-start gap-2">
+                                <span className="text-oracle-textSecondary mt-0.5">•</span>
+                                <span>Daily Footfall & Traffic</span>
+                            </li>
+                            <li className="text-sm flex items-start gap-2">
+                                <span className="text-oracle-textSecondary mt-0.5">•</span>
+                                <span>Commercial Density & Synergy</span>
+                            </li>
+                            <li className="text-sm flex items-start gap-2">
+                                <span className="text-oracle-textSecondary mt-0.5">•</span>
+                                <span>Competitor Presence & Saturation</span>
+                            </li>
+                            <li className="text-sm flex items-start gap-2">
+                                <span className="text-oracle-textSecondary mt-0.5">•</span>
+                                <span>Rental Costs & Overhead Risk</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    {/* Key Drivers */}
+                    <div>
+                        <div className="text-xs text-oracle-textSecondary uppercase tracking-widest mb-3">Key Drivers</div>
+                        <ul className="space-y-2">
+                            {keyDrivers.length > 0 ? keyDrivers.map((driver, idx) => (
+                                <li key={idx} className="text-sm flex justify-between items-start border-b border-oracle-border/30 pb-2 mb-2 last:border-0">
+                                    <span className="text-oracle-textPrimary">{METRIC_LABELS[driver.metric]}</span>
+                                    <span className={driver.deltaPct >= 0 ? 'text-oracle-accent' : 'text-oracle-danger'}>
+                                        {driver.deltaPct > 0 ? '+' : ''}{driver.deltaPct.toFixed(1)}%
+                                    </span>
+                                </li>
+                            )) : <li className="text-sm text-oracle-textSecondary">No significant variance drivers identified.</li>}
+                        </ul>
+                    </div>
                 </div>
-            </div>
 
-            {/* Terminal Close Divider */}
-            <div className="px-4 pb-2">
-                <span
-                    className="font-mono text-xs tracking-wider"
-                    style={{ color: '#333333' }}
-                >
-                    ──────────────────────────────────────────────────────────────────────
-                </span>
             </div>
         </div>
     );

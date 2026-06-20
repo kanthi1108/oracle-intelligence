@@ -44,8 +44,8 @@ export async function POST() {
         }
 
         // 2. User doesn't exist, instantiate new record
-        const email = user.email || user.phone || 'unknown@oracle.ai';
-        const fullName = 'Oracle Operative';
+        const email = user.email || user.phone || 'unknown@system.internal';
+        const fullName = 'Analyst';
 
         const { data: newProfile, error: insertError } = await serviceSupabase
             .from('users')

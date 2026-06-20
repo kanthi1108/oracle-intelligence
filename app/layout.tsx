@@ -16,8 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ORACLE // Location Intelligence Engine",
-  description: "Decisions, not dashboards. Facts, not scores.",
+  title: "ATLASIQ Location Intelligence Platform",
+  description: "Enterprise site selection and predictive demographic intelligence",
 };
 
 export default function RootLayout({

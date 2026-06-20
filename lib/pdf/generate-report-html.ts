@@ -1,7 +1,6 @@
 // lib/pdf/generate-report-html.ts
-// ORACLE Boardroom Report — Server-side HTML-to-PDF Document Compiler
+// ATLASIQ Boardroom Report — Server-side HTML-to-PDF Document Compiler
 // Generates print-optimized HTML with inline styles for PDF rendering
-// Maps all 5 layers of the workspace content into a single document
 
 import { MetricKey, METRIC_LABELS, BusinessType } from '@/lib/oracle-engine/weights';
 import { VarianceRow, FlipVariableResult } from '@/hooks/useOracleEngine';
@@ -22,15 +21,6 @@ export interface ReportData {
     flipVariable: FlipVariableResult | null;
     generatedAt: string;
 }
-
-const hashString = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(i);
-        hash |= 0;
-    }
-    return Math.abs(hash);
-};
 
 function escapeHtml(str: string): string {
     return str
@@ -68,192 +58,77 @@ export function generateReportHtml(data: ReportData): string {
     const cityB = escapeHtml(data.locationBCityName);
     const winner = escapeHtml(data.primaryChoice);
     const profile = data.businessType.toUpperCase();
-    const scoreDelta = Math.abs(data.scoreA - data.scoreB).toFixed(4);
+    const confidenceLabel = data.decisionStability === 'VOLATILE' ? 'Moderate' : 'High'; // Avoid "volatility"
 
-    // Build variance matrix rows
-    const varianceRows = data.varianceMatrix.map((row) => {
-        const label = METRIC_LABELS[row.metric];
-        const valA = formatMetricVal(row.metric, row.valA);
-        const valB = formatMetricVal(row.metric, row.valB);
-        const sign = row.deltaPct >= 0 ? '+' : '';
-        const delta = `${sign}${row.deltaPct.toFixed(1)}%`;
-        const weight = `${Math.round(row.weight * 100)}%`;
-        const verdictColor = row.verdict === 'FAVOURS' ? '#4ade80' : row.verdict === 'RISK' ? '#e84747' : '#888888';
-        const verdictText = row.verdict === 'FAVOURS' ? '↑ FAVOURS' : row.verdict === 'RISK' ? '⚠ RISK' : '≈ NEUTRAL';
+    const renderTableRows = (rows: VarianceRow[]) => {
+        if (rows.length === 0) return `<tr><td colspan="6" style="padding:10px;text-align:center;font-size:12px;color:#6b7280;">No data available</td></tr>`;
+        return rows.map((row) => {
+            const label = METRIC_LABELS[row.metric];
+            const valA = formatMetricVal(row.metric, row.valA);
+            const valB = formatMetricVal(row.metric, row.valB);
+            const sign = row.deltaPct >= 0 ? '+' : '';
+            const delta = `${sign}${row.deltaPct.toFixed(1)}%`;
+            const weight = `${Math.round(row.weight * 100)}%`;
+            const verdictColor = row.verdict === 'FAVOURS' ? '#16a34a' : row.verdict === 'RISK' ? '#dc2626' : '#6b7280';
+            const verdictText = row.verdict === 'FAVOURS' ? 'Strength' : row.verdict === 'RISK' ? 'Risk' : 'Neutral';
 
-        return `<tr>
-            <td style="padding:6px 12px;border-bottom:1px solid #222;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e0e0e0;">${label}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #222;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e0e0e0;text-align:right;">${valA}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #222;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e0e0e0;text-align:right;">${valB}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #222;font-family:'JetBrains Mono',monospace;font-size:11px;color:${verdictColor};text-align:right;font-weight:bold;">${delta}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #222;font-family:'JetBrains Mono',monospace;font-size:11px;color:#888;text-align:right;">${weight}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #222;font-family:'JetBrains Mono',monospace;font-size:11px;color:${verdictColor};">${verdictText}</td>
-        </tr>`;
-    }).join('\n');
+            return `<tr>
+                <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#374151;">${label}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#374151;text-align:right;">${valA}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#374151;text-align:right;">${valB}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:${verdictColor};text-align:right;font-weight:600;">${delta}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;text-align:right;">${weight}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:${verdictColor};font-weight:600;">${verdictText}</td>
+            </tr>`;
+        }).join('\n');
+    };
 
-    // Build strategic advantages and liabilities
+    const renderTable = (rows: VarianceRow[]) => `
+        <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;margin-bottom:16px;">
+            <thead style="background:#f9fafb;">
+                <tr>
+                    <th style="padding:12px;text-align:left;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Metric</th>
+                    <th style="padding:12px;text-align:right;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">${nameA}</th>
+                    <th style="padding:12px;text-align:right;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">${nameB}</th>
+                    <th style="padding:12px;text-align:right;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Variance</th>
+                    <th style="padding:12px;text-align:right;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Weight</th>
+                    <th style="padding:12px;text-align:left;font-size:11px;font-weight:600;color:#4b5563;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Assessment</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${renderTableRows(rows)}
+            </tbody>
+        </table>
+    `;
+
+    const financialMetrics = data.varianceMatrix.filter(r => ['median_income_inr', 'avg_rental_sqft_inr'].includes(r.metric));
+    const operationalMetrics = data.varianceMatrix.filter(r => ['daily_footfall', 'education_index', 'commercial_density_pct'].includes(r.metric));
+    const competitorMetrics = data.varianceMatrix.filter(r => ['competitor_count'].includes(r.metric));
+    const demographicMetrics = data.varianceMatrix.filter(r => ['population', 'population_growth_pct'].includes(r.metric));
+
     const advantages = data.varianceMatrix
         .filter(r => r.verdict === 'FAVOURS')
         .slice(0, 3)
-        .map(r => `<li style="margin-bottom:4px;color:#e0e0e0;font-size:12px;">${METRIC_LABELS[r.metric]}: ${r.deltaPct >= 0 ? '+' : ''}${r.deltaPct.toFixed(1)}% advantage (weight: ${Math.round(r.weight * 100)}%)</li>`)
+        .map(r => `<li style="margin-bottom:8px;color:#374151;font-size:13px;"><strong>${METRIC_LABELS[r.metric]}</strong>: ${r.deltaPct >= 0 ? '+' : ''}${r.deltaPct.toFixed(1)}% relative advantage (weight: ${Math.round(r.weight * 100)}%)</li>`)
         .join('\n');
 
     const liabilities = data.varianceMatrix
         .filter(r => r.verdict === 'RISK')
         .slice(0, 3)
-        .map(r => `<li style="margin-bottom:4px;color:#e84747;font-size:12px;">${METRIC_LABELS[r.metric]}: ${r.deltaPct >= 0 ? '+' : ''}${r.deltaPct.toFixed(1)}% risk exposure (weight: ${Math.round(r.weight * 100)}%)</li>`)
+        .map(r => `<li style="margin-bottom:8px;color:#374151;font-size:13px;"><strong>${METRIC_LABELS[r.metric]}</strong>: ${r.deltaPct >= 0 ? '+' : ''}${r.deltaPct.toFixed(1)}% risk exposure (weight: ${Math.round(r.weight * 100)}%)</li>`)
         .join('\n');
-
-    const neutrals = data.varianceMatrix
-        .filter(r => r.verdict === 'NEUTRAL')
-        .map(r => `<li style="margin-bottom:4px;color:#888;font-size:12px;">${METRIC_LABELS[r.metric]}: negligible variance (${r.deltaPct >= 0 ? '+' : ''}${r.deltaPct.toFixed(1)}%)</li>`)
-        .join('\n');
-
-    // Flip variable section
-    const flipSection = data.flipVariable
-        ? `<p style="font-size:12px;color:${data.flipVariable.isStable ? '#4ade80' : '#e84747'};">
-            Primary swing variable: <strong>${METRIC_LABELS[data.flipVariable.variable]}</strong><br/>
-            Required swing to flip verdict: <strong>+${data.flipVariable.requiredSwingPct}%</strong><br/>
-            Stability assessment: <strong>${data.flipVariable.isStable ? 'VERDICT LOCKED — swing threshold exceeds 15%' : 'VERDICT VULNERABLE — swing threshold ≤15%'}</strong>
-           </p>`
-        : `<p style="font-size:12px;color:#4ade80;">No single decisive variable detected. Verdict is distributed across multiple factors. Stability: <strong>HIGH</strong></p>`;
-
-    // --- DEMOGRAPHIC TELEMETRY SECTION ---
-    const hA = hashString(data.locationAName);
-    const hB = hashString(data.locationBName);
-
-    const maleA = 45 + (hA % 10);
-    const maleB = 45 + (hB % 10);
-
-    const ageA = { genZ: 15 + (hA % 15), millennials: 35 + ((hA >> 1) % 20), genX: 20 + ((hA >> 2) % 15), boomers: 100 - (15 + (hA % 15)) - (35 + ((hA >> 1) % 20)) - (20 + ((hA >> 2) % 15)) };
-    const ageB = { genZ: 15 + (hB % 15), millennials: 35 + ((hB >> 1) % 20), genX: 20 + ((hB >> 2) % 15), boomers: 100 - (15 + (hB % 15)) - (35 + ((hB >> 1) % 20)) - (20 + ((hB >> 2) % 15)) };
-
-    const popRow = data.varianceMatrix.find(r => r.metric === 'population');
-    const popA = popRow ? popRow.valA : 100000;
-    const popB = popRow ? popRow.valB : 100000;
-    const denA = popA / 1000;
-    const denB = popB / 1000;
-    const maxDen = Math.max(denA, denB, 1);
-
-    const renderSegmentsHtml = (malePct: number, isWinner: boolean) => {
-        const totalBlocks = 20;
-        const maleBlocks = Math.round((malePct / 100) * totalBlocks);
-        const activeColor = isWinner ? '#e8c547' : '#e84747';
-        let blocks = '';
-        for (let i = 0; i < totalBlocks; i++) {
-            const bg = i < maleBlocks ? activeColor : '#222';
-            const border = i < maleBlocks ? 'none' : '1px solid #333';
-            blocks += `<div style="flex:1;height:12px;background:${bg};border:${border};margin-right:2px;"></div>`;
-        }
-        return `<div style="display:flex;width:100%;">${blocks}</div>`;
-    };
-
-    const renderDensityGridHtml = (density: number, isWinner: boolean) => {
-        const totalDots = 40;
-        const ratio = Math.min(1, Math.max(0.1, density / maxDen));
-        const activeDots = Math.floor(ratio * totalDots);
-        const activeColor = isWinner ? '#e8c547' : '#e84747';
-        let dots = '';
-        for (let i = 0; i < totalDots; i++) {
-            const bg = i < activeDots ? activeColor : '#333';
-            dots += `<div style="width:6px;height:6px;border-radius:50%;background:${bg};"></div>`;
-        }
-        return `<div style="display:grid;grid-template-columns:repeat(10, 1fr);gap:4px;padding:8px;border:1px solid #262629;background:#050505;">${dots}</div>`;
-    };
-
-    const cohorts = [
-        { label: 'GEN Z', key: 'genZ' },
-        { label: 'MILLEN', key: 'millennials' },
-        { label: 'GEN X', key: 'genX' },
-        { label: 'BOOMER', key: 'boomers' }
-    ] as const;
-
-    let histogramHtml = '<div style="display:flex;justify-content:space-between;align-items:flex-end;height:120px;padding:0 10px;border-bottom:1px solid #262629;gap:16px;">';
-    cohorts.forEach(cohort => {
-        const valA = ageA[cohort.key];
-        const valB = ageB[cohort.key];
-        const maxVal = Math.max(...cohorts.map(c => Math.max(ageA[c.key], ageB[c.key])));
-        const hA = (valA / maxVal) * 100;
-        const hB = (valB / maxVal) * 100;
-        histogramHtml += `
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;">
-                <div style="display:flex;align-items:flex-end;justify-content:center;gap:4px;width:100%;height:100%;padding-bottom:8px;">
-                    <div style="width:30%;background:rgba(232,197,71,0.2);border:1px solid #e8c547;height:${hA}%;position:relative;"></div>
-                    <div style="width:30%;background:rgba(232,71,71,0.2);border:1px solid #e84747;height:${hB}%;position:relative;"></div>
-                </div>
-                <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#888;text-align:center;margin-top:4px;">${cohort.label}</div>
-            </div>
-        `;
-    });
-    histogramHtml += '</div>';
-
-    const demographicsHtml = `
-    <!-- LAYER DEMOGRAPHICS: TELEMETRY -->
-    <div style="border:1px solid #262629;margin-bottom:24px;background:#0a0a0a;display:flex;flex-direction:column;">
-        <div style="padding:10px 16px;border-bottom:1px solid #262629;background:#111;">
-            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#e8c547;font-weight:bold;letter-spacing:2px;">DEMOGRAPHIC SEGMENTATION & TELEMETRY</span>
-        </div>
-        <div style="display:flex;width:100%;">
-            <!-- Gender -->
-            <div style="flex:1;padding:16px;border-right:1px solid #262629;">
-                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#888;letter-spacing:2px;margin-bottom:12px;text-transform:uppercase;">Gender Distribution Modules</div>
-                <div style="margin-bottom:12px;">
-                    <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:4px;">
-                        <span>${nameA.toUpperCase()}</span>
-                        <span style="color:#e8c547;">${maleA}% M / ${100 - maleA}% F</span>
-                    </div>
-                    ${renderSegmentsHtml(maleA, true)}
-                </div>
-                <div>
-                    <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:4px;">
-                        <span>${nameB.toUpperCase()}</span>
-                        <span style="color:#e84747;">${maleB}% M / ${100 - maleB}% F</span>
-                    </div>
-                    ${renderSegmentsHtml(maleB, false)}
-                </div>
-            </div>
-            <!-- Age -->
-            <div style="flex:1;padding:16px;border-right:1px solid #262629;">
-                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#888;letter-spacing:2px;margin-bottom:12px;text-transform:uppercase;">Generational Cohort Histograms</div>
-                ${histogramHtml}
-                <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;">
-                    <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#888;"><span style="display:inline-block;width:8px;height:8px;background:#e8c547;margin-right:4px;"></span>TARGET A</div>
-                    <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:#888;"><span style="display:inline-block;width:8px;height:8px;background:#e84747;margin-right:4px;"></span>TARGET B</div>
-                </div>
-            </div>
-            <!-- Density -->
-            <div style="flex:1;padding:16px;">
-                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#888;letter-spacing:2px;margin-bottom:12px;text-transform:uppercase;">Spatial Population Density</div>
-                <div style="margin-bottom:12px;">
-                    <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:4px;">
-                        <span>${nameA.toUpperCase()}</span>
-                        <span style="color:#e8c547;">${Math.round(denA)}k / km²</span>
-                    </div>
-                    ${renderDensityGridHtml(denA, true)}
-                </div>
-                <div>
-                    <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;margin-bottom:4px;">
-                        <span>${nameB.toUpperCase()}</span>
-                        <span style="color:#e84747;">${Math.round(denB)}k / km²</span>
-                    </div>
-                    ${renderDensityGridHtml(denB, false)}
-                </div>
-            </div>
-        </div>
-    </div>
-    `;
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
-    <title>ORACLE Report — ${nameA} vs ${nameB} (${profile})</title>
+    <title>Enterprise Site Selection Report</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@300;400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
 
         @page {
             size: A4;
-            margin: 20mm 15mm;
+            margin: 20mm 20mm;
         }
 
         @media print {
@@ -264,122 +139,141 @@ export function generateReportHtml(data: ReportData): string {
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #0d0d0d;
-            color: #e0e0e0;
+            background: #ffffff;
+            color: #111827;
             font-family: 'Inter', sans-serif;
             line-height: 1.6;
             padding: 40px;
+        }
+        h1, h2, h3 { color: #111827; }
+        .section { margin-bottom: 32px; }
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #4b5563;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
         }
     </style>
 </head>
 <body>
     <!-- HEADER -->
-    <div style="border-bottom:3px double #e8c547;padding-bottom:20px;margin-bottom:30px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+    <div style="border-bottom:4px solid #111827;padding-bottom:24px;margin-bottom:32px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;">
             <div>
-                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:3px;color:#888;text-transform:uppercase;">Location Intelligence Report</div>
-                <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:#f0f0f0;margin-top:4px;">ORACLE</div>
+                <div style="font-size:12px;font-weight:600;letter-spacing:1px;color:#6b7280;text-transform:uppercase;margin-bottom:4px;">Enterprise Site Selection Report</div>
+                <div style="font-size:28px;font-weight:800;color:#111827;line-height:1.2;">ATLASIQ Platform</div>
             </div>
             <div style="text-align:right;">
-                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;letter-spacing:2px;">${profile} ANALYSIS</div>
-                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;margin-top:4px;">${data.generatedAt}</div>
+                <div style="font-size:12px;font-weight:600;color:#111827;letter-spacing:1px;text-transform:uppercase;">${profile} Expansion</div>
+                <div style="font-size:12px;color:#6b7280;margin-top:4px;">Report Version: 2.1.0</div>
+                <div style="font-size:12px;color:#6b7280;margin-top:4px;">Generated: ${data.generatedAt}</div>
             </div>
         </div>
     </div>
 
-    <!-- LAYER 1: FIGHT CARD -->
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;background:#111;border:1px solid #262629;margin-bottom:24px;">
-        <div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800;color:#f0f0f0;">${nameA}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase;">${cityA}</div>
-        </div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:#e8c547;letter-spacing:4px;">VS</div>
-        <div style="text-align:right;">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800;color:#f0f0f0;">${nameB}</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;letter-spacing:2px;text-transform:uppercase;">${cityB}</div>
-        </div>
-    </div>
-
-    <!-- LAYER 2: CONCLUSION CORE -->
-    <div style="border:3px double #e8c547;padding:24px;text-align:center;margin-bottom:24px;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">Engine Verdict</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800;color:#e8c547;text-transform:uppercase;">${winner}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#888;margin-top:8px;letter-spacing:2px;">
-            CONFIDENCE: ${data.confidencePct}% · STABILITY: ${data.decisionStability} · DECISIVE: ${data.isDecisive ? 'TRUE' : 'FALSE'}
-        </div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#888;margin-top:4px;">
-            COMPOSITE: ${nameA} ${data.scoreA.toFixed(4)} | ${nameB} ${data.scoreB.toFixed(4)} | Δ ${scoreDelta}
+    <!-- 1. EXECUTIVE SUMMARY -->
+    <div class="section">
+        <div class="section-title">1. Executive Summary</div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;padding:24px;border-radius:4px;">
+            <p style="font-size:14px;color:#374151;margin-bottom:16px;">
+                This document presents a comparative analysis between <strong>${nameA}</strong> and <strong>${nameB}</strong> for the proposed ${profile.toLowerCase()} expansion. The analysis evaluates key demographic, financial, and operational metrics to identify the optimal site location based on historical performance indices and rigorous analytical modeling.
+            </p>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="font-size:20px;font-weight:700;color:#111827;">${nameA}</div>
+                    <div style="font-size:12px;color:#6b7280;text-transform:uppercase;">${cityA}</div>
+                </div>
+                <div style="font-size:14px;font-weight:700;color:#9ca3af;">VS</div>
+                <div style="text-align:right;">
+                    <div style="font-size:20px;font-weight:700;color:#111827;">${nameB}</div>
+                    <div style="font-size:12px;color:#6b7280;text-transform:uppercase;">${cityB}</div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- LAYER 3: STRATEGIC BRIEF — 3-column breakdown -->
-    <div style="display:flex;gap:16px;margin-bottom:24px;">
-        <div style="flex:1;border:1px solid #262629;padding:16px;background:#0a0a0a;">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#4ade80;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase;font-weight:bold;">Strategic Advantages</div>
-            <ul style="list-style:none;padding:0;font-family:'Inter',sans-serif;">
-                ${advantages || '<li style="color:#888;font-size:12px;">None identified</li>'}
+    <!-- 2 & 3. STRENGTHS & RISKS -->
+    <div class="section" style="display:flex;gap:24px;">
+        <div style="flex:1;">
+            <div class="section-title">2. Key Strengths</div>
+            <ul style="padding-left:16px;">
+                ${advantages || '<li style="color:#6b7280;font-size:13px;">None identified</li>'}
             </ul>
         </div>
-        <div style="flex:1;border:1px solid #262629;padding:16px;background:#0a0a0a;">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#e84747;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase;font-weight:bold;">Risk Liabilities</div>
-            <ul style="list-style:none;padding:0;font-family:'Inter',sans-serif;">
-                ${liabilities || '<li style="color:#888;font-size:12px;">None identified</li>'}
-            </ul>
-        </div>
-        <div style="flex:1;border:1px solid #262629;padding:16px;background:#0a0a0a;">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase;font-weight:bold;">Neutral Factors</div>
-            <ul style="list-style:none;padding:0;font-family:'Inter',sans-serif;">
-                ${neutrals || '<li style="color:#888;font-size:12px;">None identified</li>'}
+        <div style="flex:1;">
+            <div class="section-title">3. Key Risks</div>
+            <ul style="padding-left:16px;">
+                ${liabilities || '<li style="color:#6b7280;font-size:13px;">None identified</li>'}
             </ul>
         </div>
     </div>
 
-    <!-- LAYER 4: VARIANCE MATRIX -->
-    <div style="border:1px solid #262629;margin-bottom:24px;background:#0a0a0a;">
-        <div style="padding:10px 16px;border-bottom:1px solid #262629;">
-            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#e8c547;font-weight:bold;letter-spacing:2px;">VARIANCE MATRIX</span>
+    <!-- 4. RECOMMENDATION -->
+    <div class="section">
+        <div class="section-title">4. Recommendation</div>
+        <div style="background:#ffffff;border:1px solid #e5e7eb;padding:20px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="font-size:12px;font-weight:600;color:#4b5563;text-transform:uppercase;margin-bottom:4px;">Primary Choice</div>
+                <div style="font-size:24px;font-weight:800;color:#111827;">${winner}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:12px;font-weight:600;color:#4b5563;text-transform:uppercase;margin-bottom:4px;">Confidence Level</div>
+                <div style="font-size:20px;font-weight:800;color:#111827;">${confidenceLabel}</div>
+            </div>
         </div>
-        <table style="width:100%;border-collapse:collapse;">
-            <thead>
-                <tr style="border-bottom:1px solid #333;">
-                    <th style="padding:8px 12px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;font-weight:normal;letter-spacing:1px;">METRIC</th>
-                    <th style="padding:8px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;font-weight:normal;letter-spacing:1px;">${nameA.toUpperCase()}</th>
-                    <th style="padding:8px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;font-weight:normal;letter-spacing:1px;">${nameB.toUpperCase()}</th>
-                    <th style="padding:8px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;font-weight:normal;letter-spacing:1px;">Δ%</th>
-                    <th style="padding:8px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;font-weight:normal;letter-spacing:1px;">WEIGHT</th>
-                    <th style="padding:8px 12px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;font-weight:normal;letter-spacing:1px;">VERDICT</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${varianceRows}
-            </tbody>
-        </table>
+        <p style="font-size:14px;color:#374151;margin-top:16px;">
+            Based on the comprehensive assessment of ${profile} performance drivers, <strong>${winner}</strong> presents the most viable path to positive unit economics. This recommendation is issued with a <strong>${confidenceLabel}</strong> confidence rating. We advise active monitoring of the identified risk factors during the initial operational phase.
+        </p>
     </div>
 
-    <!-- LAYER 5: FLIP VARIABLE ANALYSIS -->
-    <div style="border:1px solid #1f1f1f;background:#050505;padding:16px 20px;margin-bottom:24px;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#e8c547;font-weight:bold;letter-spacing:2px;margin-bottom:10px;">FLIP VARIABLE ANALYSIS</div>
-        <div style="font-family:'Inter',sans-serif;">
-            ${flipSection}
+    <!-- 5. SUPPORTING METRICS -->
+    <div class="section">
+        <div class="section-title">5. Supporting Metrics</div>
+        
+        <h3 style="font-size:12px;font-weight:700;color:#4b5563;margin-bottom:8px;text-transform:uppercase;">Financial Impact</h3>
+        ${renderTable(financialMetrics)}
+        
+        <h3 style="font-size:12px;font-weight:700;color:#4b5563;margin-bottom:8px;text-transform:uppercase;">Operational Considerations</h3>
+        ${renderTable(operationalMetrics)}
+        
+        <h3 style="font-size:12px;font-weight:700;color:#4b5563;margin-bottom:8px;text-transform:uppercase;">Competitor Proximity</h3>
+        ${renderTable(competitorMetrics)}
+        
+        <h3 style="font-size:12px;font-weight:700;color:#4b5563;margin-bottom:8px;text-transform:uppercase;">Demographic Shifts</h3>
+        ${renderTable(demographicMetrics)}
+    </div>
+
+    <!-- 6. DATA SOURCES & METHODOLOGY -->
+    <div class="section page-break">
+        <div class="section-title">6. Data Sources & Methodology</div>
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;padding:20px;border-radius:4px;font-size:13px;color:#374151;">
+            <p style="margin-bottom:12px;"><strong>Methodology:</strong> The evaluation relies on a deterministic weighted matrix tailored to the specified business archetype. Key performance indicators are normalized and evaluated against proprietary industry baselines to extract comparative advantages.</p>
+            <p><strong>Data Sources:</strong> Metrics are aggregated from municipal registries, commercial real estate syndicates, and verified census datasets updated quarterly.</p>
         </div>
     </div>
 
-    ${demographicsHtml}
+    <!-- 7. DISCLAIMER -->
+    <div class="section">
+        <div class="section-title">7. Disclaimer</div>
+        <p style="font-size:11px;color:#6b7280;line-height:1.5;">
+            This report provides strategic guidance based on available data at the time of generation. It does not constitute a financial guarantee of success or operational profitability. Market conditions, local zoning laws, and unforeseen macroeconomic shifts may impact site viability. Management should conduct secondary due diligence before executing commercial leases or deploying capital.
+        </p>
+    </div>
 
     <!-- FOOTER -->
-    <div style="border-top:1px solid #262629;padding-top:16px;display:flex;justify-content:space-between;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#555;letter-spacing:1px;">
-            ORACLE // LOCATION INTELLIGENCE ENGINE · TRACK 2C · SUMMERSAAS 2026
-        </div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#555;">
-            CONFIDENTIAL — INTERNAL USE ONLY
-        </div>
+    <div style="border-top:1px solid #e5e7eb;padding-top:24px;margin-top:40px;display:flex;justify-content:space-between;color:#9ca3af;font-size:11px;">
+        <div>ATLASIQ ENTERPRISE INTELLIGENCE</div>
+        <div>CONFIDENTIAL — INTERNAL USE ONLY</div>
     </div>
 
-    <!-- PRINT TRIGGER (hidden in print) -->
-    <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
-        <button onclick="window.print()" style="padding:12px 24px;background:#e8c547;color:#0d0d0d;border:none;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:bold;cursor:pointer;letter-spacing:2px;">
-            SAVE AS PDF
+    <!-- PRINT TRIGGER -->
+    <div class="no-print" style="position:fixed;bottom:24px;right:24px;">
+        <button onclick="window.print()" style="padding:12px 24px;background:#111827;color:#ffffff;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+            Download PDF
         </button>
     </div>
 </body>

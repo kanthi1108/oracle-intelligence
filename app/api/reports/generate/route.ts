@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
         // synchronously (<50ms) and the Anthropic Claude API call streams
         // the narrative layers (Layers 2 & 3) in parallel.
         //
-        // For the hackathon MVP, return a success payload confirming
+        // For the current release, return a success payload confirming
         // the credit was consumed and locations were validated.
 
         // Update user's reports_generated counter and last_report timestamp

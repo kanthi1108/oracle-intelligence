@@ -90,15 +90,20 @@ export default function Home() {
     }
   }, [engine.reportStatus]);
 
+  useEffect(() => {
+    // Phase 11: Removed document body overflow lock to allow sidebar scrolling
+  }, [engine.isStale]);
+
   if (isAuthChecking) {
     return (
-      <main className="flex h-screen w-screen items-center justify-center bg-oracle-bg overflow-hidden font-mono text-oracle-accent">
+      <main className="flex flex-col lg:flex-row h-screen w-screen items-center justify-center bg-oracle-bg overflow-hidden font-mono text-oracle-accent">
         [INITIALIZING SYSTEM...]
       </main>
     );
   }
 
   const handleExportReport = async () => {
+    if (!evaluation) return;
     try {
       const response = await fetch('/api/reports/export', {
         method: 'POST',
@@ -134,8 +139,8 @@ export default function Home() {
   };
 
   return (
-    <main className="flex h-screen w-screen bg-oracle-bg overflow-hidden font-sans text-oracle-textPrimary relative">
-      
+    <main className="flex flex-col lg:flex-row h-screen w-screen bg-oracle-bg overflow-hidden font-sans text-oracle-textPrimary relative">
+
       {/* Phase 8: Credit Exhaustion Lock Overlay */}
       {engine.creditsExhausted && engine.userRole !== 'admin' && (
         <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center">
@@ -174,16 +179,16 @@ export default function Home() {
       )}
 
       {/* 25% CONTROL RIG SIDEBAR - FIXED FRAME TIER */}
-      <aside className="w-[320px] h-full bg-oracle-rig border-r border-oracle-border p-6 flex flex-col justify-between shrink-0 overflow-y-auto">
+      <aside className="w-full lg:w-[320px] h-[40vh] lg:h-full bg-oracle-rig border-b lg:border-b-0 lg:border-r border-oracle-border p-6 flex flex-col justify-between shrink-0 overflow-y-auto">
         <div className="space-y-6">
           {/* Header Typography Group */}
           <div className="flex justify-between items-start">
             <div>
               <div className="text-[10px] font-mono tracking-widest text-oracle-textSecondary uppercase">
-                System Interface Core
+                Workspace
               </div>
               <h1 className="text-xl font-black tracking-tight text-oracle-textPrimary mt-0.5">
-                ORACLE // PLATFORM
+                ATLASIQ
               </h1>
             </div>
             <button
@@ -232,6 +237,7 @@ export default function Home() {
                 onChange={(e) => engine.setLocationAId(e.target.value)}
                 className="w-full bg-oracle-bg border border-oracle-border font-mono text-xs p-2 focus:outline-none focus:border-oracle-accent"
               >
+                <option value="" disabled>SELECT TARGET A</option>
                 {allLocations.map((loc) => (
                   <option key={loc.id} value={loc.id}>
                     {loc.locality_name.toUpperCase()} ({loc.city_name})
@@ -249,6 +255,7 @@ export default function Home() {
                 onChange={(e) => engine.setLocationBId(e.target.value)}
                 className="w-full bg-oracle-bg border border-oracle-border font-mono text-xs p-2 focus:outline-none focus:border-oracle-accent"
               >
+                <option value="" disabled>SELECT TARGET B</option>
                 {allLocations.map((loc) => (
                   <option key={loc.id} value={loc.id} disabled={loc.id === engine.locationAId}>
                     {loc.locality_name.toUpperCase()} ({loc.city_name})
@@ -261,7 +268,7 @@ export default function Home() {
           {/* Real-time Interaction Matrix Modifiers */}
           <div className="border-t border-oracle-border pt-4 space-y-4">
             <div className="text-[10px] font-mono text-oracle-textSecondary uppercase tracking-wider">
-              Simulation Variance Rig
+              Scenario Adjustments
             </div>
 
             {/* SCENARIO PRESETS */}
@@ -332,25 +339,13 @@ export default function Home() {
               disabled={engine.reportStatus !== 'Ready' || (engine.creditsExhausted && engine.userRole !== 'admin')}
               className="w-full bg-oracle-accent text-oracle-bg font-mono font-bold tracking-widest text-[11px] py-3 mt-4 hover:bg-white hover:shadow-[0_0_15px_rgba(255,215,0,0.3)] transition-all uppercase disabled:opacity-50 disabled:cursor-not-allowed"
           >
-              Run Strategic Intelligence Simulation
+              Run Analysis
           </button>
 
           {engine.userRole === 'member' && (
-            <button
-              onClick={async () => {
-                const res = await fetch('/api/credits/sandbox-purchase', { method: 'POST' });
-                if (res.ok) {
-                  const data = await res.json();
-                  if (typeof data.balance === 'number') {
-                    engine.setCreditBalance(data.balance);
-                    engine.setCreditsExhausted(false);
-                  }
-                }
-              }}
-              className="w-full bg-transparent border border-oracle-border text-oracle-textSecondary font-mono tracking-widest text-[10px] py-2 mt-2 hover:border-oracle-accent hover:text-oracle-accent transition-colors uppercase"
-            >
-              [ Purchase Credits (Sandbox) ]
-            </button>
+            <a href="/upgrade" className="block w-full bg-transparent border border-oracle-border text-oracle-textSecondary font-mono tracking-widest text-[10px] py-2 mt-2 text-center hover:border-oracle-accent hover:text-oracle-accent transition-colors uppercase">
+              [ Upgrade Plan ]
+            </a>
           )}
 
           {engine.userRole === 'admin' && (
@@ -405,99 +400,117 @@ export default function Home() {
       </aside>
 
       {/* 75% MAIN FLOATING WORKSPACE CONTENT VIEWPORT CANVAS */}
-      <section className="flex-1 h-full bg-oracle-bg flex flex-col p-8 overflow-y-auto space-y-6">
+      <section className="flex-1 h-full bg-oracle-bg relative overflow-hidden">
+
+        {/* Phase 11: Strict Parameter Lockout Overlay - CONSTRAINED SCOPE */}
+        {engine.isStale && (
+          <div className="absolute inset-0 z-30 bg-oracle-bg/80 backdrop-blur-md flex flex-col items-center justify-center border border-oracle-danger/50 p-8 text-center">
+            <div className="text-oracle-danger font-mono font-bold text-lg mb-2 uppercase tracking-widest">
+              {engine.committedState.locationAId === '' ? '[ AWAITING PARAMETERS — EXECUTION REQUIRED ]' : '[ PARAMETERS MODIFIED — EXECUTION REQUIRED ]'}
+            </div>
+            <div className="text-oracle-textSecondary font-mono text-sm max-w-md leading-relaxed mb-6">
+              {engine.committedState.locationAId === '' 
+                ? 'Select your target locations and parameters. Run the analysis to view metrics.'
+                : 'Parameters have been modified. Run a new analysis to update metrics.'}
+            </div>
+            <button 
+                onClick={() => engine.runPipeline(fetchProfileData)}
+                disabled={engine.creditsExhausted && engine.userRole !== 'admin'}
+                className="bg-oracle-accent text-oracle-bg font-mono font-bold tracking-widest text-[11px] py-3 px-8 hover:bg-white hover:shadow-[0_0_15px_rgba(255,215,0,0.3)] transition-all uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                Run Analysis
+            </button>
+          </div>
+        )}
+
+        <div className="w-full h-full overflow-y-auto p-4 lg:p-8 flex flex-col space-y-6">
 
         {/* Spatial Selection Engine Vector Matrix */}
         <div className="w-full h-64 shrink-0 mb-4 border border-oracle-border/50">
            <InteractiveVectorMatrix
-             locations={allLocations}
+             locations={engine.allLocations}
              locationAId={engine.locationAId}
              locationBId={engine.locationBId}
-             onSelectLocation={(id) => {
-               // Cycle selection logic
-               if (engine.locationAId === id) return; // ignore if already A
-               if (engine.locationBId === id) {
-                 // swap A and B
-                 engine.setLocationAId(id);
-               } else {
-                 // set B to new, maybe shift A to old B
-                 engine.setLocationBId(id);
-               }
-             }}
+             onSelectLocationA={(id) => engine.setLocationAId(id)}
+             onSelectLocationB={(id) => engine.setLocationBId(id)}
            />
         </div>
 
-        {/* Layer 1: Fight Card Header */}
-        <L1FightCard
-          locationA={evaluation.locA}
-          locationB={evaluation.locB}
-          businessType={engine.activeProfile}
-        />
+        {engine.evaluation && (
+          <>
+            {/* Layer 1: Comparison Overview */}
+            <L1FightCard
+              locationA={engine.evaluation.locA}
+              locationB={engine.evaluation.locB}
+              businessType={engine.activeProfile}
+            />
 
-        {/* Demographic Telemetry Visualisations */}
-        <DemographicVisuals 
-          locationA={evaluation.locA}
-          locationB={evaluation.locB}
-        />
+            {/* Demographic Analysis Visualisations */}
+            <DemographicVisuals 
+              locationA={engine.evaluation.locA}
+              locationB={engine.evaluation.locB}
+            />
 
-        <L2ConclusionCore
-          primaryChoice={evaluation.primaryChoice}
-          decisionStability={evaluation.decisionStability}
-          varianceMatrix={evaluation.varianceMatrix}
-          confidencePct={evaluation.confidencePct}
-        />
+            <L2ConclusionCore
+              primaryChoice={engine.evaluation.primaryChoice}
+              decisionStability={engine.evaluation.decisionStability}
+              varianceMatrix={engine.evaluation.varianceMatrix}
+            />
 
-        {/* Executive Takeaway Callout */}
-        <L2ExecutiveTakeaway 
-          primaryChoice={evaluation.primaryChoice}
-          businessType={engine.activeProfile}
-        />
+            {/* Executive Takeaway Callout */}
+            <L2ExecutiveTakeaway 
+              primaryChoice={engine.evaluation.primaryChoice}
+              businessType={engine.activeProfile}
+            />
 
-        {/* Layer 3: McKinsey-Grade Strategic Brief */}
-        <L3StrategicBrief
-          locationA={evaluation.locA}
-          locationB={evaluation.locB}
-          primaryChoice={evaluation.primaryChoice}
-          businessType={engine.activeProfile}
-          varianceMatrix={evaluation.varianceMatrix}
-        />
+            {/* Layer 3: Strategic Brief */}
+            <L3StrategicBrief
+              locationA={engine.evaluation.locA}
+              locationB={engine.evaluation.locB}
+              primaryChoice={engine.evaluation.primaryChoice}
+              businessType={engine.activeProfile}
+              varianceMatrix={engine.evaluation.varianceMatrix}
+            />
 
-        {/* Layer 4: Explainability Variance Matrix */}
-        <L4VarianceMatrix
-          varianceMatrix={evaluation.varianceMatrix}
-          locationAName={evaluation.locA.locality_name}
-          locationBName={evaluation.locB.locality_name}
-        />
+            {/* Layer 4: Explainability Variance Matrix */}
+            <L4VarianceMatrix
+              varianceMatrix={engine.evaluation.varianceMatrix}
+              locationAName={engine.evaluation.locA.locality_name}
+              locationBName={engine.evaluation.locB.locality_name}
+            />
 
-        {/* Layer 5: Causality Event Feed */}
-        <L5CausalityFeed
-          causalityEvents={evaluation.causalityEvents}
-          flipVariable={evaluation.flipVariable}
-          primaryChoice={evaluation.primaryChoice}
-        />
+            {/* Layer 5: Causality Event Feed */}
+            <L5CausalityFeed
+              causalityEvents={engine.evaluation.causalityEvents}
+              flipVariable={engine.evaluation.flipVariable}
+              primaryChoice={engine.evaluation.primaryChoice}
+              varianceMatrix={engine.evaluation.varianceMatrix}
+            />
 
-        {/* Export Controls — PRD §5.1 */}
-        <div className="flex items-center justify-end pt-2">
-          <button
-            onClick={handleExportReport}
-            id="btn-export-report"
-            className="flex items-center gap-2 py-2.5 px-5
-                       bg-oracle-panel border border-oracle-border
-                       font-mono text-xs text-oracle-textSecondary tracking-wider
-                       transition-all duration-200
-                       hover:border-oracle-accent hover:text-oracle-accent
-                       focus:outline-none focus:border-oracle-accent
-                       active:scale-[0.98] select-none"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            DOWNLOAD BOARDROOM REPORT
-          </button>
+            {/* Export Controls — PRD §5.1 */}
+            <div className="flex items-center justify-end pt-2 pb-12 lg:pb-2">
+              <button
+                onClick={() => {
+                  if (!engine.evaluation) return;
+                  handleExportReport();
+                }}
+                id="btn-export-report"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 sm:py-2.5 px-5
+                           bg-oracle-panel border border-oracle-border
+                           text-oracle-textPrimary font-mono text-[10px] uppercase tracking-widest
+                           hover:border-oracle-accent hover:text-oracle-accent transition-all"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Export Report
+              </button>
+            </div>
+          </>
+        )}
         </div>
-
       </section>
     </main>
   );

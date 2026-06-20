@@ -3,6 +3,7 @@
 // Server-side JWT inspection: rejects non-admin users with redirect to /
 
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server';
 
 interface AdminUser {
@@ -41,20 +42,24 @@ export default async function AdminLayout({
     return (
         <div className="min-h-screen bg-oracle-bg text-oracle-textPrimary">
             {/* Admin Top Bar */}
-            <header className="h-12 border-b border-oracle-border bg-oracle-rig flex items-center justify-between px-6 select-none">
-                <div className="flex items-center gap-4">
-                    <span className="font-mono text-xs tracking-wider text-oracle-accent font-bold">
-                        ORACLE // ADMIN
-                    </span>
-                    <span className="text-[10px] font-mono text-oracle-textSecondary tracking-wider uppercase">
+            <header className="h-auto min-h-12 border-b border-oracle-border bg-oracle-rig flex flex-wrap items-center justify-between px-4 sm:px-6 py-2 select-none gap-2">
+                <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+                    <div className="font-mono text-xs sm:text-sm tracking-widest text-oracle-textPrimary font-bold flex items-center gap-3">
+                        ATLASIQ ADMINISTRATION
+                    </div>
+                    <span className="hidden sm:inline text-[10px] font-mono text-oracle-textSecondary tracking-wider uppercase">
                         Control Panel
                     </span>
+                    <span className="hidden sm:inline text-oracle-mutedBorder">|</span>
+                    <Link href="/" className="text-[9px] sm:text-[10px] font-mono text-oracle-textSecondary hover:text-oracle-textPrimary transition-colors uppercase tracking-widest">
+                        [ RETURN TO WORKSPACE ]
+                    </Link>
                 </div>
-                <div className="flex items-center gap-4">
-                    <span className="text-[10px] font-mono text-oracle-textSecondary">
+                <div className="flex items-center gap-2 sm:gap-4">
+                    <span className="hidden sm:inline text-[10px] font-mono text-oracle-textSecondary">
                         {profile.full_name}
                     </span>
-                    <span className="text-[10px] font-mono text-oracle-accent font-bold px-2 py-0.5 border border-oracle-accent">
+                    <span className="text-[9px] sm:text-[10px] font-mono text-oracle-accent font-bold px-1.5 sm:px-2 py-0.5 border border-oracle-accent">
                         ADMIN
                     </span>
                 </div>

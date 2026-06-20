@@ -1,5 +1,5 @@
 // lib/telegram.ts
-// ORACLE Telegram Bot Lifecycle Notification System — PRD §5.5
+// AtlasIQ Telegram Bot Lifecycle Notification System — PRD §5.5
 // Server-side only. Bot token never exposed to client.
 // Dispatches lifecycle events via HTTPS to the Telegram Bot API.
 
@@ -93,8 +93,8 @@ function buildNotificationMessage(
     event: LifecycleEvent,
     ctx: LifecycleContext
 ): string {
-    const upgradeUrl = ctx.UPGRADE_URL ?? 'https://oracle-intelligence.vercel.app/upgrade';
-    const renewUrl = ctx.RENEW_URL ?? 'https://oracle-intelligence.vercel.app/upgrade';
+    const upgradeUrl = ctx.UPGRADE_URL ?? 'https://AtlasIQ-intelligence.vercel.app/upgrade';
+    const renewUrl = ctx.RENEW_URL ?? 'https://AtlasIQ-intelligence.vercel.app/upgrade';
 
     switch (event) {
         case 'REPORT_GENERATED':
@@ -113,7 +113,7 @@ function buildNotificationMessage(
             return [
                 `⚠️ *Low Credits Alert*`,
                 ``,
-                `You have *${ctx.BALANCE}* credit(s) remaining on your ORACLE account.`,
+                `You have *${ctx.BALANCE}* credit(s) remaining on your AtlasIQ account.`,
                 ``,
                 `Upgrade to Analyst for 15 credits/month: ${upgradeUrl}`,
             ].join('\n');
@@ -122,7 +122,7 @@ function buildNotificationMessage(
             return [
                 `🚫 *Credits Exhausted*`,
                 ``,
-                `You've used all your ORACLE credits.`,
+                `You've used all your AtlasIQ credits.`,
                 ``,
                 `→ Upgrade to Analyst (₹499/month) to continue: ${upgradeUrl}`,
             ].join('\n');
@@ -131,7 +131,7 @@ function buildNotificationMessage(
             return [
                 `✅ *Subscription Active*`,
                 ``,
-                `Welcome to ORACLE Analyst!`,
+                `Welcome to AtlasIQ Analyst!`,
                 ``,
                 `15 fresh credits are ready.`,
                 `Your billing cycle ends: ${ctx.END_DATE ?? 'TBD'}`,
@@ -141,7 +141,7 @@ function buildNotificationMessage(
             return [
                 `🔔 *Subscription Expiring Soon*`,
                 ``,
-                `Your ORACLE Analyst subscription expires in 3 days (${ctx.END_DATE ?? 'TBD'}).`,
+                `Your AtlasIQ Analyst subscription expires in 3 days (${ctx.END_DATE ?? 'TBD'}).`,
                 ``,
                 `Renew to keep your 15 monthly credits: ${renewUrl}`,
             ].join('\n');
@@ -150,7 +150,7 @@ function buildNotificationMessage(
             return [
                 `📭 *Subscription Cancelled*`,
                 ``,
-                `Your ORACLE Analyst subscription has been cancelled.`,
+                `Your AtlasIQ Analyst subscription has been cancelled.`,
                 ``,
                 `You can still access reports you've generated. Your account reverts to Spark (3 lifetime credits).`,
             ].join('\n');
