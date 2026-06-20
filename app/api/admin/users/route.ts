@@ -41,10 +41,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'Target user not found' }, { status: 404 });
         }
 
-        if (targetProfile.role === 'admin') {
-            return NextResponse.json({ error: 'Cannot delete an admin' }, { status: 403 });
-        }
-
+        // Admin deletion restriction removed
 
         // 1. Delete credits
         await serviceClient.from('credits').delete().eq('user_id', targetProfile.id);

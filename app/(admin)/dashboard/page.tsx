@@ -451,14 +451,12 @@ export default function AdminDashboard() {
                                                 CREDITS
                                             </button>
                                             
-                                            {user.role !== 'admin' && (
-                                                <button
-                                                    onClick={() => handleDeleteUser(user.id)}
-                                                    className="text-[10px] font-mono text-[#e84747] border border-[#e84747] px-2 py-0.5 hover:bg-[#e84747] hover:text-oracle-bg transition-colors tracking-wider"
-                                                >
-                                                    DELETE
-                                                </button>
-                                            )}
+                                            <button
+                                                onClick={() => handleDeleteUser(user.id)}
+                                                className="text-[10px] font-mono text-[#e84747] border border-[#e84747] px-2 py-0.5 hover:bg-[#e84747] hover:text-oracle-bg transition-colors tracking-wider"
+                                            >
+                                                DELETE
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
