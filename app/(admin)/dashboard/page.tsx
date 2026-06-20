@@ -234,15 +234,16 @@ export default function AdminDashboard() {
     }, []);
 
     const handleDeleteUser = async (userId: string) => {
+        if (!window.confirm('Delete this user permanently?')) return;
+        const deletedUser = users.find(u => u.id === userId);
+        setUsers(prev => prev.filter(u => u.id !== userId));
         try {
             const res = await fetch(`/api/admin/users?id=${userId}`, { method: 'DELETE' });
             if (!res.ok) {
-                console.error('Failed to delete user');
-            } else {
-                fetchData(); // Refresh grid instantly
+                if (deletedUser) setUsers(prev => [...prev, deletedUser]);
             }
-        } catch (error) {
-            console.error('Deletion error:', error);
+        } catch {
+            if (deletedUser) setUsers(prev => [...prev, deletedUser]);
         }
     };
 
