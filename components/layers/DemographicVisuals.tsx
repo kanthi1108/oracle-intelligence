@@ -8,42 +8,48 @@ interface DemographicVisualsProps {
     locationB: LocationData;
 }
 
-// Simple deterministic hash to generate consistent pseudo-random data per location
-const hashString = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(i);
-        hash |= 0;
-    }
-    return Math.abs(hash);
-};
-
 export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ locationA, locationB }) => {
     const dataA = useMemo(() => {
-        const h = hashString(locationA.locality_name);
-        const male = 45 + (h % 10);
+        const educationSkew = locationA.education_index - 0.5;
+        const growthSkew = locationA.population_growth_pct / 20;
+        const incomeFactor = Math.min(1, locationA.median_income_inr / 150000);
+
+        const malePct = 48 + Math.round(growthSkew * 6);
+        const genZ = 12 + Math.round((1 - incomeFactor) * 20) + Math.round(growthSkew * 5);
+        const millennials = 28 + Math.round(educationSkew * 20) + Math.round(growthSkew * 8);
+        const genX = 18 + Math.round((1 - Math.abs(educationSkew)) * 12);
+        const boomers = 100 - genZ - millennials - genX;
+
         return {
-            gender: { male, female: 100 - male },
+            gender: { male: Math.min(55, Math.max(42, malePct)), female: 100 - Math.min(55, Math.max(42, malePct)) },
             age: {
-                genZ: 15 + (h % 15),
-                millennials: 35 + ((h >> 1) % 20),
-                genX: 20 + ((h >> 2) % 15),
-                boomers: 100 - (15 + (h % 15)) - (35 + ((h >> 1) % 20)) - (20 + ((h >> 2) % 15))
+                genZ: Math.max(8, genZ),
+                millennials: Math.max(25, Math.min(55, millennials)),
+                genX: Math.max(12, genX),
+                boomers: Math.max(5, Math.min(30, boomers))
             },
-            density: locationA.population / 1000 // Proxy for density visualization
+            density: locationA.population / 1000
         };
     }, [locationA]);
 
     const dataB = useMemo(() => {
-        const h = hashString(locationB.locality_name);
-        const male = 45 + (h % 10);
+        const educationSkew = locationB.education_index - 0.5;
+        const growthSkew = locationB.population_growth_pct / 20;
+        const incomeFactor = Math.min(1, locationB.median_income_inr / 150000);
+
+        const malePct = 48 + Math.round(growthSkew * 6);
+        const genZ = 12 + Math.round((1 - incomeFactor) * 20) + Math.round(growthSkew * 5);
+        const millennials = 28 + Math.round(educationSkew * 20) + Math.round(growthSkew * 8);
+        const genX = 18 + Math.round((1 - Math.abs(educationSkew)) * 12);
+        const boomers = 100 - genZ - millennials - genX;
+
         return {
-            gender: { male, female: 100 - male },
+            gender: { male: Math.min(55, Math.max(42, malePct)), female: 100 - Math.min(55, Math.max(42, malePct)) },
             age: {
-                genZ: 15 + (h % 15),
-                millennials: 35 + ((h >> 1) % 20),
-                genX: 20 + ((h >> 2) % 15),
-                boomers: 100 - (15 + (h % 15)) - (35 + ((h >> 1) % 20)) - (20 + ((h >> 2) % 15))
+                genZ: Math.max(8, genZ),
+                millennials: Math.max(25, Math.min(55, millennials)),
+                genX: Math.max(12, genX),
+                boomers: Math.max(5, Math.min(30, boomers))
             },
             density: locationB.population / 1000
         };
@@ -51,7 +57,6 @@ export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ location
 
     const maxDensity = Math.max(dataA.density, dataB.density, 1);
 
-    // Segmented layout helper
     const renderSegments = (malePct: number, colorClass: string) => {
         const totalBlocks = 20;
         const maleBlocks = Math.round((malePct / 100) * totalBlocks);
@@ -67,7 +72,6 @@ export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ location
         );
     };
 
-    // Age cohorts list
     const cohorts = [
         { label: 'GEN Z', key: 'genZ' },
         { label: 'MILLEN', key: 'millennials' },
@@ -75,9 +79,7 @@ export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ location
         { label: 'BOOMER', key: 'boomers' }
     ] as const;
 
-    // Dot grid density helper
     const renderDensityGrid = (density: number, colorClass: string) => {
-        // Density affects the number of visible dots in a 10x4 grid
         const totalDots = 40;
         const ratio = Math.min(1, Math.max(0.1, density / maxDensity));
         const activeDots = Math.floor(ratio * totalDots);
@@ -104,11 +106,10 @@ export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ location
 
             <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-oracle-border">
                 
-                {/* 1. GENDER BALANCE (Segmented Blocks) */}
+                {/* 1. GENDER BALANCE */}
                 <div className="p-5 flex flex-col space-y-6">
-                    <div className="text-[9px] font-mono text-oracle-textSecondary uppercase tracking-widest">Gender Distribution Modules</div>
+                    <div className="text-[9px] font-mono text-oracle-textSecondary uppercase tracking-widest">Gender Distribution</div>
                     
-                    {/* Location A */}
                     <div className="space-y-2">
                         <div className="flex justify-between text-[10px] font-mono text-oracle-textPrimary">
                             <span className="truncate max-w-[80px]">{locationA.locality_name}</span>
@@ -117,7 +118,6 @@ export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ location
                         {renderSegments(dataA.gender.male, 'bg-oracle-accent shadow-[0_0_8px_rgba(212,175,55,0.4)]')}
                     </div>
 
-                    {/* Location B */}
                     <div className="space-y-2">
                         <div className="flex justify-between text-[10px] font-mono text-oracle-textPrimary">
                             <span className="truncate max-w-[80px]">{locationB.locality_name}</span>
@@ -127,9 +127,9 @@ export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ location
                     </div>
                 </div>
 
-                {/* 2. AGE DISTRIBUTION (Vertical Histogram) */}
+                {/* 2. AGE DISTRIBUTION */}
                 <div className="p-5 flex flex-col space-y-4">
-                    <div className="text-[9px] font-mono text-oracle-textSecondary uppercase tracking-widest">Generational Cohort Histograms</div>
+                    <div className="text-[9px] font-mono text-oracle-textSecondary uppercase tracking-widest">Generational Cohort Distributions</div>
                     
                     <div className="flex-1 flex items-end justify-between px-2 pt-4 border-b border-oracle-border pb-2 gap-4">
                         {cohorts.map(cohort => {
@@ -168,12 +168,11 @@ export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ location
                     </div>
                 </div>
 
-                {/* 3. POPULATION DENSITY (Spatial Dot Grid) */}
+                {/* 3. POPULATION DENSITY */}
                 <div className="p-5 flex flex-col space-y-6">
                     <div className="text-[9px] font-mono text-oracle-textSecondary uppercase tracking-widest">Spatial Population Density</div>
                     
                     <div className="flex flex-col justify-end space-y-6">
-                        {/* Location A Density */}
                         <div className="space-y-2">
                             <div className="flex justify-between text-[10px] font-mono text-oracle-textPrimary">
                                 <span className="truncate max-w-[80px]">{locationA.locality_name}</span>
@@ -182,7 +181,6 @@ export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ location
                             {renderDensityGrid(dataA.density, 'bg-oracle-accent shadow-[0_0_5px_rgba(212,175,55,0.5)]')}
                         </div>
 
-                        {/* Location B Density */}
                         <div className="space-y-2">
                             <div className="flex justify-between text-[10px] font-mono text-oracle-textPrimary">
                                 <span className="truncate max-w-[80px]">{locationB.locality_name}</span>
@@ -196,4 +194,4 @@ export const DemographicVisuals: React.FC<DemographicVisualsProps> = ({ location
             </div>
         </div>
     );
-};
+}

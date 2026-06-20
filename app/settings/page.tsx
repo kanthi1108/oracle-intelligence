@@ -18,17 +18,27 @@ export default function SettingsPage() {
     const supabase = createClient();
 
     useEffect(() => {
-        const fetchUser = async () => {
+        const loadSettings = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 setDisplayName(user.user_metadata?.full_name || '');
                 setCompanyName(user.user_metadata?.company_name || '');
+
+                try {
+                    const res = await fetch('/api/auth/profile');
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.profile?.full_name) {
+                            setDisplayName(data.profile.full_name);
+                        }
+                    }
+                } catch {}
             } else {
                 router.push('/login');
             }
             setLoading(false);
         };
-        fetchUser();
+        loadSettings();
     }, [router, supabase]);
 
     const handleSave = async (e: React.FormEvent) => {
@@ -48,11 +58,27 @@ export default function SettingsPage() {
             updatePayload.password = password;
         }
 
-        const { error } = await supabase.auth.updateUser(updatePayload);
+        const { error: authError } = await supabase.auth.updateUser(updatePayload);
 
-        if (error) {
-            setErrorMsg(error.message);
+        if (authError) {
+            setErrorMsg(authError.message);
         } else {
+            try {
+                const profileRes = await fetch('/api/auth/profile', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        full_name: displayName,
+                        company_name: companyName,
+                    }),
+                });
+                if (!profileRes.ok) {
+                    console.error('Failed to sync profile to public.users');
+                }
+            } catch (err) {
+                console.error('Profile sync error:', err);
+            }
+
             setSuccessMsg('Settings saved successfully.');
             setPassword('');
         }

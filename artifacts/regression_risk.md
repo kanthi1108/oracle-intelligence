@@ -1,28 +1,51 @@
 # Regression Risk Assessment
 
-## High Risk Areas
+## Changes Made to Existing Files
 
-| Area | Risk | Mitigation |
-|------|------|------------|
-| **Credit consumption** | P0-1 (invalid transaction_type) can be fixed by changing to `'promotional_grant'` but schema change required if `'sandbox_purchase'` should be a valid type | Either add to CHECK constraint or change the value |
-| **Upgrade page** | Adding a `/upgrade` page requires careful design — must integrate with payment providers | Start with a simple info page, then integrate Razorpay/Stripe |
-| **L5 CausalityFeed** | Restoring full causality events would require re-implementing the Phase 7 removed logic | Add back event generation loops from git history or rewrite |
-| **DemographicVisuals** | Replacing fake hash data with real data requires either DB extension with real demographic tables or API integration | Add demographic data tables or integrate with census API |
-| **AI narrative** | Implementing Claude API integration requires ANTHROPIC_API_KEY setup + prompt engineering | Add streaming API call to `/api/reports/generate` and forward to client |
+| File | Risk Level | Nature of Change | Rollback |
+|------|-----------|------------------|----------|
+| `hooks/useOracleEngine.ts` | **Medium** | Added 3 new state vars, rewrote loadSavedReport, expanded save payload. Existing behavior preserved when savedEvaluation is null. | Revert file |
+| `app/api/reports/save/route.ts` | **Low** | Replaced hardcoded defaults with body-passed values. All fields still have fallbacks (`|| {}`, `|| []`). | Revert file |
+| `app/page.tsx` | **Medium** | Changed report library onClick signature, added new UI elements conditionally gated on activeSavedReportId. displayEvaluation falls back to evaluation. | Revert file |
+| `app/settings/page.tsx` | **Low** | Added PATCH call after successful auth update. Falls back silently on failure. Added profile fetch for initial load (non-blocking). | Revert file |
+| `app/api/auth/profile/route.ts` | **Low** | Added PATCH handler. Extended GET select to include full_name. Backward compatible. | Revert file |
+| `components/layers/L2_ExecutiveTakeaway.tsx` | **Low** | Replaced hardcoded business-type strings with data-driven generation. New props have defaults from existing data. | Revert file |
+| `components/layers/L3_StrategicBrief.tsx` | **Low** | Replaced hardcoded business-type strings with data-driven generation. Two new optional-like props. | Revert file |
+| `components/layers/DemographicVisuals.tsx` | **Low** | Changed generation from hash-based to metric-derived. All values still in same valid ranges. | Revert file |
 
-## Low Risk Areas
+## New Files (Zero Regression Risk)
+| File | Risk |
+|------|------|
+| `app/api/reports/load/route.ts` | None — not called by any existing code |
+| `app/api/reports/share/route.ts` | None — not called by any existing code |
+| `components/ShareReportModal.tsx` | None — only rendered when showShareModal state is true |
+| `supabase/migrations/005_email_delivery_logs.sql` | None — new table only |
 
-| Area | Risk Level | Notes |
-|------|------------|-------|
-| Report export endpoint authentication | Low | Adding auth check will not break export flow |
-| Idempotency for credit consumption | Low | Adding key is backward-compatible |
-| Admin dashboard RLS fix | Low | Replacing client calls with API calls is safe |
-| Settings page profile sync | Low | Adding profile update to `public.users` is safe |
+## Risk Mitigation
+1. **All new states have safe defaults**: `savedEvaluation` defaults to `null`, so live `evaluation` is used automatically
+2. **All save API payload fields have fallbacks**: `|| {}`, `|| []`, `|| 0` ensure existing data formats still work
+3. **New UI elements are conditionally gated**: Share button only shows when `activeSavedReportId` is set
+4. **Settings sync is non-blocking**: PATCH failure is logged but doesn't block success message
+5. **Layer component props are backward compatible**: All new props are derived from data already passed (varianceMatrix, confidencePct, etc.)
+6. **Build passes with 0 errors**: No type mismatches or import issues
 
-## Non-Risky Fixes (Safe to apply immediately)
+## Rollback Strategy
+To roll back all P1-P4 changes, revert these 8 files:
+```
+hooks/useOracleEngine.ts
+app/api/reports/save/route.ts
+app/page.tsx
+app/settings/page.tsx
+app/api/auth/profile/route.ts
+components/layers/L2_ExecutiveTakeaway.tsx
+components/layers/L3_StrategicBrief.tsx
+components/layers/DemographicVisuals.tsx
+```
 
-1. Fix `sandbox-purchase` transaction_type to `'promotional_grant'`
-2. Create `/upgrade` page with at least a basic placeholder
-3. Add auth check to report export
-4. Add idempotency key to credit consumption
-5. Re-enable L5 causality event generation
+And delete these 4 files:
+```
+app/api/reports/load/route.ts
+app/api/reports/share/route.ts
+components/ShareReportModal.tsx
+supabase/migrations/005_email_delivery_logs.sql
+```

@@ -59,6 +59,21 @@ export interface FlipVariableResult {
     isStable: boolean;      // TRUE if swing_required > 15%
 }
 
+export interface Evaluation {
+    primaryChoice: string;
+    locA: LocationData;
+    locB: LocationData;
+    scoreA: number;
+    scoreB: number;
+    deltas: Record<string, number>;
+    varianceMatrix: VarianceRow[];
+    confidencePct: number;
+    decisionStability: string;
+    isDecisive: boolean;
+    flipVariable: FlipVariableResult | null;
+    causalityEvents: CausalityEvent[];
+}
+
 // Preloading high-density seed rows straight from PRD Section 2.4
 const SEED_LOCATIONS: LocationData[] = [
     { id: '1', locality_name: 'Madhapur', city_name: 'Hyderabad', population: 142000, population_growth_pct: 11.4, median_income_inr: 95000, education_index: 0.847, daily_footfall: 68000, commercial_density_pct: 72.5, competitor_count: 14, avg_rental_sqft_inr: 145, metro_station_within_1km: true, office_parks_within_2km: 18, hospitals_within_3km: 6, schools_within_2km: 12 },
@@ -133,6 +148,8 @@ export function useOracleEngine() {
         rentModifierA !== committedState.rentModifierA ||
         incomeModifierA !== committedState.incomeModifierA;
 
+    const [savedEvaluation, setSavedEvaluation] = useState<Evaluation | null>(null);
+    const [activeSavedReportId, setActiveSavedReportId] = useState<string | null>(null);
     const [creditsExhausted, setCreditsExhausted] = useState<boolean>(false);
     const [creditBalance, setCreditBalance] = useState<number>(150); // Live reactive balance
     const [reportStatus, setReportStatus] = useState<'Requested' | 'Processing' | 'Ready'>('Ready');
@@ -497,7 +514,7 @@ export function useOracleEngine() {
             return;
         }
 
-        // Write report history
+        // Write report history with full evaluation snapshot
         try {
             await fetch('/api/reports/save', {
                 method: 'POST',
@@ -506,12 +523,22 @@ export function useOracleEngine() {
                     business_type: activeProfile,
                     location_a_id: locationAId,
                     location_b_id: locationBId,
+                    location_a_snapshot: latestEval.locA,
+                    location_b_snapshot: latestEval.locB,
                     winner_location_id: latestEval.primaryChoice === latestEval.locA.locality_name ? locationAId : locationBId,
                     verdict_confidence: latestEval.confidencePct,
                     verdict_is_decisive: latestEval.isDecisive,
                     score_location_a: latestEval.scoreA,
                     score_location_b: latestEval.scoreB,
                     primary_delta_pct: latestEval.varianceMatrix[0]?.deltaPct || 0,
+                    variance_matrix: latestEval.varianceMatrix,
+                    ai_causality_feed: latestEval.causalityEvents,
+                    ai_flip_variable: JSON.stringify(latestEval.flipVariable),
+                    ai_conclusion_text: latestEval.primaryChoice,
+                    ai_thesis_text: latestEval.decisionStability,
+                    ai_advantages_a: {},
+                    ai_advantages_b: {},
+                    ai_risks_winner: {},
                 })
             });
 
@@ -540,6 +567,38 @@ export function useOracleEngine() {
         prevChoiceRef.current = currentChoice;
     };
 
+    const loadSavedReport = async (reportId: string) => {
+        try {
+            const res = await fetch(`/api/reports/load?id=${reportId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setSavedEvaluation(data.evaluation);
+                setActiveSavedReportId(reportId);
+                setActiveProfile(data.business_type);
+                setLocationAId(data.location_a_id);
+                setLocationBId(data.location_b_id);
+                setCompetitorModifierA(0);
+                setRentModifierA(0);
+                setIncomeModifierA(0);
+                setCommittedState({
+                    activeProfile: data.business_type,
+                    locationAId: data.location_a_id,
+                    locationBId: data.location_b_id,
+                    competitorModifierA: 0,
+                    rentModifierA: 0,
+                    incomeModifierA: 0,
+                });
+            }
+        } catch (err) {
+            console.error('[ORACLE] Failed to load saved report:', err);
+        }
+    };
+
+    const clearSavedReport = () => {
+        setSavedEvaluation(null);
+        setActiveSavedReportId(null);
+    };
+
     return {
         activeProfile,
         setActiveProfile,
@@ -554,6 +613,8 @@ export function useOracleEngine() {
         incomeModifierA,
         setIncomeModifierA,
         evaluation,
+        savedEvaluation,
+        activeSavedReportId,
         allLocations: locations,
         creditsExhausted,
         setCreditsExhausted,
@@ -564,6 +625,8 @@ export function useOracleEngine() {
         setUserRole,
         setRoleResolved,
         runPipeline,
+        loadSavedReport,
+        clearSavedReport,
         isStale,
         committedState
     };

@@ -11,6 +11,7 @@ import { L1FightCard } from '@/components/layers/L1_FightCard';
 import { createClient } from '@/lib/supabase/client';
 import { InteractiveVectorMatrix } from '@/components/InteractiveVectorMatrix';
 import { DemographicVisuals } from '@/components/layers/DemographicVisuals';
+import ShareReportModal from '@/components/ShareReportModal';
 
 interface SavedReport {
   id: string;
@@ -25,9 +26,11 @@ interface SavedReport {
 export default function Home() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const engine = useOracleEngine();
   const { evaluation, allLocations } = engine;
+  const displayEvaluation = engine.savedEvaluation || evaluation;
 
   const fetchProfileData = async () => {
     try {
@@ -103,25 +106,25 @@ export default function Home() {
   }
 
   const handleExportReport = async () => {
-    if (!evaluation) return;
+    if (!displayEvaluation) return;
     try {
       const response = await fetch('/api/reports/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           businessType: engine.activeProfile,
-          locationAName: evaluation.locA.locality_name,
-          locationBName: evaluation.locB.locality_name,
-          locationACityName: evaluation.locA.city_name,
-          locationBCityName: evaluation.locB.city_name,
-          scoreA: evaluation.scoreA,
-          scoreB: evaluation.scoreB,
-          primaryChoice: evaluation.primaryChoice,
-          confidencePct: evaluation.confidencePct,
-          decisionStability: evaluation.decisionStability,
-          isDecisive: evaluation.isDecisive,
-          varianceMatrix: evaluation.varianceMatrix,
-          flipVariable: evaluation.flipVariable,
+          locationAName: displayEvaluation.locA.locality_name,
+          locationBName: displayEvaluation.locB.locality_name,
+          locationACityName: displayEvaluation.locA.city_name,
+          locationBCityName: displayEvaluation.locB.city_name,
+          scoreA: displayEvaluation.scoreA,
+          scoreB: displayEvaluation.scoreB,
+          primaryChoice: displayEvaluation.primaryChoice,
+          confidencePct: displayEvaluation.confidencePct,
+          decisionStability: displayEvaluation.decisionStability,
+          isDecisive: displayEvaluation.isDecisive,
+          varianceMatrix: displayEvaluation.varianceMatrix,
+          flipVariable: displayEvaluation.flipVariable,
         }),
       });
 
@@ -364,12 +367,10 @@ export default function Home() {
                 <div className="text-[10px] font-mono text-oracle-textSecondary italic">No reports archived.</div>
               ) : (
                 savedReports.map(report => (
-                  <button 
+                    <button 
                     key={report.id}
                     onClick={() => {
-                        engine.setActiveProfile(report.business_type);
-                        engine.setLocationAId(report.location_a_id);
-                        engine.setLocationBId(report.location_b_id);
+                        engine.loadSavedReport(report.id);
                     }}
                     className="w-full text-left text-[10px] font-mono text-oracle-textSecondary hover:text-oracle-textPrimary hover:bg-oracle-bg p-1 truncate border border-transparent hover:border-oracle-border transition-colors"
                   >
@@ -379,7 +380,21 @@ export default function Home() {
                 ))
               )}
             </div>
-          </div>
+            </div>
+
+            {engine.activeSavedReportId && (
+                <div className="border-t border-oracle-border pt-2 mt-2">
+                    <button
+                        onClick={engine.clearSavedReport}
+                        className="w-full text-left text-[10px] font-mono text-oracle-accent hover:text-white p-1 transition-colors"
+                    >
+                        [ BACK TO LIVE ANALYSIS ]
+                    </button>
+                    <div className="text-[10px] font-mono text-oracle-textSecondary mt-1 italic">
+                        Viewing archived report
+                    </div>
+                </div>
+            )}
         </div>
 
         {/* Footing Core Data Ledger */}
@@ -436,62 +451,70 @@ export default function Home() {
            />
         </div>
 
-        {engine.evaluation && (
+        {displayEvaluation && (
           <>
             {/* Layer 1: Comparison Overview */}
             <L1FightCard
-              locationA={engine.evaluation.locA}
-              locationB={engine.evaluation.locB}
+              locationA={displayEvaluation.locA}
+              locationB={displayEvaluation.locB}
               businessType={engine.activeProfile}
             />
 
             {/* Demographic Analysis Visualisations */}
             <DemographicVisuals 
-              locationA={engine.evaluation.locA}
-              locationB={engine.evaluation.locB}
+              locationA={displayEvaluation.locA}
+              locationB={displayEvaluation.locB}
             />
 
             <L2ConclusionCore
-              primaryChoice={engine.evaluation.primaryChoice}
-              decisionStability={engine.evaluation.decisionStability}
-              varianceMatrix={engine.evaluation.varianceMatrix}
+              primaryChoice={displayEvaluation.primaryChoice}
+              decisionStability={displayEvaluation.decisionStability}
+              varianceMatrix={displayEvaluation.varianceMatrix}
             />
 
             {/* Executive Takeaway Callout */}
             <L2ExecutiveTakeaway 
-              primaryChoice={engine.evaluation.primaryChoice}
+              primaryChoice={displayEvaluation.primaryChoice}
               businessType={engine.activeProfile}
+              varianceMatrix={displayEvaluation.varianceMatrix}
+              confidencePct={displayEvaluation.confidencePct}
+              scoreA={displayEvaluation.scoreA}
+              scoreB={displayEvaluation.scoreB}
+              locationAName={displayEvaluation.locA.locality_name}
+              locationBName={displayEvaluation.locB.locality_name}
             />
 
             {/* Layer 3: Strategic Brief */}
             <L3StrategicBrief
-              locationA={engine.evaluation.locA}
-              locationB={engine.evaluation.locB}
-              primaryChoice={engine.evaluation.primaryChoice}
+              locationA={displayEvaluation.locA}
+              locationB={displayEvaluation.locB}
+              primaryChoice={displayEvaluation.primaryChoice}
               businessType={engine.activeProfile}
-              varianceMatrix={engine.evaluation.varianceMatrix}
+              varianceMatrix={displayEvaluation.varianceMatrix}
+              confidencePct={displayEvaluation.confidencePct}
+              flipVariable={displayEvaluation.flipVariable}
             />
 
             {/* Layer 4: Explainability Variance Matrix */}
             <L4VarianceMatrix
-              varianceMatrix={engine.evaluation.varianceMatrix}
-              locationAName={engine.evaluation.locA.locality_name}
-              locationBName={engine.evaluation.locB.locality_name}
+              varianceMatrix={displayEvaluation.varianceMatrix}
+              locationAName={displayEvaluation.locA.locality_name}
+              locationBName={displayEvaluation.locB.locality_name}
             />
 
             {/* Layer 5: Causality Event Feed */}
             <L5CausalityFeed
-              causalityEvents={engine.evaluation.causalityEvents}
-              flipVariable={engine.evaluation.flipVariable}
-              primaryChoice={engine.evaluation.primaryChoice}
-              varianceMatrix={engine.evaluation.varianceMatrix}
+              causalityEvents={displayEvaluation.causalityEvents}
+              flipVariable={displayEvaluation.flipVariable}
+              primaryChoice={displayEvaluation.primaryChoice}
+              varianceMatrix={displayEvaluation.varianceMatrix}
             />
 
             {/* Export Controls — PRD §5.1 */}
             <div className="flex items-center justify-end pt-2 pb-12 lg:pb-2">
               <button
                 onClick={() => {
-                  if (!engine.evaluation) return;
+                  if (!displayEvaluation) return;
                   handleExportReport();
                 }}
                 id="btn-export-report"
@@ -507,8 +530,27 @@ export default function Home() {
                 </svg>
                 Export Report
               </button>
+              {engine.activeSavedReportId && (
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 sm:py-2.5 px-5
+                             bg-oracle-panel border border-oracle-border
+                             text-oracle-textPrimary font-mono text-[10px] uppercase tracking-widest
+                             hover:border-oracle-accent hover:text-oracle-accent transition-all mt-2 sm:mt-0 sm:ml-2"
+                >
+                  Share Report
+                </button>
+              )}
             </div>
+
           </>
+        )}
+
+        {showShareModal && engine.activeSavedReportId && (
+          <ShareReportModal
+            reportId={engine.activeSavedReportId}
+            onClose={() => setShowShareModal(false)}
+          />
         )}
         </div>
       </section>
